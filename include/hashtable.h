@@ -6,10 +6,10 @@
 
 typedef struct hashtable {
     int size;
-    list_t *lists[9];
+    list_t **lists;
 } hashtable;
 
-int init_hashtable(hashtable *h, int xpto);
+int init_hashtable(hashtable *h, int size);
 int delete_hashtable(hashtable *h);
 KV_t *get(hashtable *h, char *key, int shard);
 int ht_remove(hashtable *h, char *key,  int shard);
