@@ -6,17 +6,15 @@
 
 int main(int argc, char *argv[])
 {
-    hashtable *h;
+    hashtable *h = NULL;
     char key[3] = "ab";
     char value[3] = "cd";
     KV_t *par = NULL;
-    puts("l");
-    init_hashtable(h, 2);
-    puts("l");
-    add(h, "duarte", "miguel", 0);
-    add(h, "diogo", "martins", 0);
+    h = init_hashtable(2);
+    add(h, key, value, 0);
+    add(h, value, key, 0);
     /* add(h, "diogo", "martins", 1); */
-    par = get(h, "duarte", 0);
+    par = get(h, key, 0);
     if(par != NULL)
         printf("key: %s, value: %s\n", par->key, par->value);
     else

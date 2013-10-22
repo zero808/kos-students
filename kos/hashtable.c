@@ -18,9 +18,10 @@
  * } list_t;
  */
 
-int init_hashtable(hashtable *h, int size)
+hashtable *init_hashtable(int size)
 {
     int ix;
+    hashtable *h;
 
     /* allocate memory for the table */
     h = calloc(1, sizeof(hashtable));
@@ -53,7 +54,7 @@ int init_hashtable(hashtable *h, int size)
         h->lists[ix]->first = NULL;
     }
 
-    return 0;
+    return h;
 
 }
 
@@ -97,6 +98,7 @@ int ht_remove(hashtable *h, char *key,  int shard)
 void add(hashtable *h, char *key, char *value, int shard)
 {
     if(h != NULL)
+        /* lst_insert(h->lists[shard], key, value); */
         lst_insert(h->lists[shard], key, value);
     else
         puts("error: received NULL pointer");
