@@ -11,10 +11,10 @@ int main(int argc, char *argv[])
     char value[3] = "cd";
     KV_t *par = NULL;
     h = init_hashtable(2);
-    add(h, key, value, 0);
-    add(h, value, key, 0);
+    add(h, key, value);
+    add(h, value, key);
     /* add(h, "diogo", "martins", 1); */
-    par = get(h, key, 0);
+    par = get(h, key);
     if(par != NULL)
         printf("key: %s, value: %s\n", par->key, par->value);
     else

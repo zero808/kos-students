@@ -1,22 +1,6 @@
 #include <hashtable.h>
 #include <stdlib.h>
 #include <stdio.h>
-/* typedef struct hashtable {
- *     int size;
- *     list_t *lists[9];
- * } hashtable;
- */
-/* typedef struct lst_iitem {
- *    KV_t *item;
- *    struct lst_iitem *next;
- * } lst_iitem_t;
- */
-
-/* list_t */
-/* typedef struct {
- *    lst_iitem_t * first;
- * } list_t;
- */
 
 hashtable *init_hashtable(int size)
 {
@@ -32,11 +16,8 @@ hashtable *init_hashtable(int size)
     h->size = size;
     printf("size: %d\n", h->size);
 
-    /* FIXME: Consider moving this code to a new function
-     * in list.c so we can call it without having to worry
-     * how a list is implemented */
 
-    /* allocate memory for the buckets */
+    /* allocate memory for the pointers to the lists */
     h->lists = calloc((size_t) size, sizeof(list_t*));
     if(h->lists==NULL) {
         fprintf(stderr, "Dynamic memory allocation failed\n");
@@ -68,39 +49,78 @@ int delete_hashtable(hashtable *h)
             lst_destroy(h->lists[size]);
         } while(size--);
 
-        /* free the pointer */
+        /* free the pointers */
+        free(h->lists);
+        /* free the hashtable */
         free(h);
         h = NULL;
     }
     return 0;
 }
 
-KV_t *get(hashtable *h, char *key, int shard)
+int hash(char* key) {
+
+    int i=0;
+
+    if (key == NULL)
+        return -1;
+
+    while (*key != '\0') {
+        i+=(int) *key;
+        key++;
+    }
+
+    i=i % HT_SIZE;
+
+    return i;
+}
+
+KV_t *get(hashtable *h, char *key)
 {
-    if(h != NULL)
-        return lst_get(h->lists[shard], key);
+    int bucket;
+
+    if((h != NULL) && (key != NULL)) {
+        bucket = hash(key);
+        if(bucket != -1) {
+            return lst_get(h->lists[bucket], key);
+        }
+    }
     else {
         puts("error: received NULL pointer");
         return NULL;
     }
+    /* it will never get here, but at least the compiler won't complain */
+    return NULL;
 }
 
-int ht_remove(hashtable *h, char *key,  int shard)
+int ht_remove(hashtable *h, char *key)
 {
-    if(h != NULL)
-        return lst_remove(h->lists[shard], key);
+    int bucket;
+    if((h != NULL) && (key != NULL)) {
+        bucket = hash(key);
+        if(bucket != -1) {
+            return lst_remove(h->lists[bucket], key);
+        }
+    }
     else {
         puts("error: received NULL pointer");
         return -1;
     }
+    /* it will never get here, but at least the compiler won't complain */
+    return -1;
 }
 
-void add(hashtable *h, char *key, char *value, int shard)
+void add(hashtable *h, char *key, char *value)
 {
-    if(h != NULL)
-        /* lst_insert(h->lists[shard], key, value); */
-        lst_insert(h->lists[shard], key, value);
+    int bucket;
+    if((h != NULL) && (key != NULL)) {
+        bucket = hash(key);
+        if(bucket != -1) {
+            lst_insert(h->lists[bucket], key, value);
+        }
+    }
     else
         puts("error: received NULL pointer");
 }
+
 

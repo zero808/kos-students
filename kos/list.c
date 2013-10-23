@@ -53,28 +53,34 @@ void lst_destroy(list_t *list)
 
 void lst_insert(list_t *list, char *key, char* value)
 {
-    if(list->first == NULL) {
-        list->first =  malloc(sizeof(lst_iitem_t));
-        list->first->item =  malloc(sizeof(KV_t));
-        strcpy(list->first->item->key, key);
-        strcpy(list->first->item->value, value);
-        list->first->next = NULL;
-    }
-    else {
-        lst_iitem_t  *tempA, *tempB;
-        tempA =  malloc(sizeof(lst_iitem_t));
-        tempA->item = calloc(1, sizeof(KV_t));
-        strcpy(tempA->item->key, key);
-        strcpy(tempA->item->value, value);
-        tempA->next = NULL;
-        tempB = list->first;
-
-        /* Percorrer a lista ate encontrar o ultimo elemento */
-        while(tempB->next != NULL) {
-            tempB = tempB->next;
+    if((list != NULL) && (key != NULL) && (value != NULL)) {
+        /* if the list is empty just add it */
+        if(list->first == NULL) {
+            list->first =  malloc(sizeof(lst_iitem_t));
+            list->first->item =  malloc(sizeof(KV_t));
+            strncpy(list->first->item->key, key, KV_SIZE);
+            strncpy(list->first->item->value, value, KV_SIZE);
+            list->first->next = NULL;
         }
-        /* adicioná-lo ao fim da lista */
-        tempB->next = tempA;
+        else {
+            lst_iitem_t  *temp;
+
+            /* Percorrer a lista ate encontrar o ultimo elemento */
+            for(temp = list->first; temp->next != NULL; temp = temp->next) {
+                /* check if there's an item using the key */
+                if(strncmp(key, temp->item->key, KV_SIZE) == 0) {
+                    /* if it already exists replace its value */
+                    strncpy(temp->item->value, value, KV_SIZE);
+                    return;
+                }
+            }
+            /* if we didn't find it we just have to insert it at the end of the list */
+            temp->next =  malloc(sizeof(lst_iitem_t));
+            temp->next->item = calloc(1, sizeof(KV_t));
+            strncpy(temp->next->item->key, key, KV_SIZE);
+            strncpy(temp->next->item->value, value, KV_SIZE);
+            temp->next->next = NULL;
+        }
     }
 }
 
@@ -88,7 +94,7 @@ int lst_remove(list_t *list, char *key)
         lst_iitem_t  *tempA, *tempB;
         tempA = list->first;
         /* checks first element */
-        if(!strcmp(tempA->item->key, key)) {
+        if(!strncmp(tempA->item->key, key, KV_SIZE)) {
             tempB = tempA->next;
             free(tempA->item);
             free(tempA);
@@ -100,7 +106,7 @@ int lst_remove(list_t *list, char *key)
                 /* checks the next element */
                 if(tempA->next != NULL) {
                     /* If we found the element we remove it */
-                    if(!strcmp(tempA->next->item->key, key)) {
+                    if(!strncmp(tempA->next->item->key, key, KV_SIZE)) {
                         tempB = tempA->next->next;
                         free(tempA->next->item);
                         free(tempA->next);
@@ -129,7 +135,6 @@ void lst_print(list_t *list)
     for(temp = list->first; temp != NULL; temp = temp->next) {
         printf("key: %s, value: %s\n", temp->item->key, temp->item->value);
     }
-    /* puts("\n"); */
 }
 
 int lst_size(list_t *list) {
@@ -148,7 +153,7 @@ KV_t *lst_get(list_t *list, char* key) {
 
     temp = list->first;
     while(temp != NULL) {
-        if(!strcmp(key, temp->item->key)) {
+        if(!strncmp(key, temp->item->key, KV_SIZE)) {
             return temp->item;
         }
         else
