@@ -1,6 +1,8 @@
 #include <hashtable.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
 
 hashtable *init_hashtable(int size)
 {
@@ -31,6 +33,16 @@ hashtable *init_hashtable(int size)
             exit(EXIT_FAILURE);
         }
         h->lists[ix]->first = NULL;
+    }
+
+
+    pthread_mutex_init(&(h->mutex_writers), NULL);
+    sem_init(&(h->teste), 0, 2);
+    for(ix = 0; ix < size; ix += 1) {
+        h->readers[ix] = 0;
+        pthread_mutex_init(&(h->mutex_counter[ix]), NULL);
+        sem_init(&(h->no_waiting[ix]), 0, 2);
+        sem_init(&(h->no_accessing[ix]), 0, HT_SIZE);
     }
 
     return h;
@@ -75,13 +87,30 @@ int hash(char* key) {
 
 KV_t *get(hashtable *h, char *key)
 {
-    int bucket;
-
+    int bucket, prev, current;
+    KV_t* pair;
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-        if(bucket != -1) {
-            return lst_get(h->lists[bucket], key);
+        sem_wait(&(h->no_waiting[bucket]));
+        pthread_mutex_lock(&(h->mutex_counter[bucket]));
+        prev = h->readers[bucket];
+        h->readers[bucket] += 1;
+        
+        pthread_mutex_unlock(&(h->mutex_counter[bucket]));
+        if(prev == 0) {
+            sem_wait(&(h->no_accessing[bucket]));
         }
+        sem_post(&(h->no_waiting[bucket]));
+        pair = lst_get(h->lists[bucket], key);
+        pthread_mutex_lock(&(h->mutex_counter[bucket]));
+        
+        h->readers[bucket] -= 1;
+        current = h->readers[bucket];
+        pthread_mutex_unlock(&(h->mutex_counter[bucket]));
+        if(current == 0) {
+            sem_post(&(h->no_accessing[bucket]));
+        }
+        return pair;
     }
     else {
         puts("error: received NULL pointer");
@@ -93,12 +122,16 @@ KV_t *get(hashtable *h, char *key)
 
 int ht_remove(hashtable *h, char *key)
 {
-    int bucket;
+    int bucket, ret;
+    /*  se nao houver nem leitores nem escritores */
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-        if(bucket != -1) {
-            return lst_remove(h->lists[bucket], key);
-        }
+        sem_wait(&(h->no_waiting[bucket]));
+        sem_wait(&(h->no_accessing[bucket]));
+        sem_post(&(h->no_waiting[bucket]));
+        ret = lst_remove(h->lists[bucket], key);
+        sem_post(&(h->no_accessing[bucket]));
+        return ret;
     }
     else {
         puts("error: received NULL pointer");
@@ -110,15 +143,28 @@ int ht_remove(hashtable *h, char *key)
 
 void add(hashtable *h, char *key, char *value)
 {
+    /* conta como escritor */
     int bucket;
     if((h != NULL) && (key != NULL)) {
+    /* pthread_mutex_lock(&(h->mutex_writers)); */
+    puts("teste");
+    sem_wait(&(h->teste));
+    if(errno == EAGAIN)
+        puts("nao deu");
         bucket = hash(key);
-        if(bucket != -1) {
-            lst_insert(h->lists[bucket], key, value);
-        }
+        printf("%d\n", bucket);
+        sem_wait(&(h->no_waiting[bucket]));
+        printf("%d\n", bucket);
+        sem_wait(&(h->no_accessing[bucket]));
+        sem_post(&(h->no_waiting[bucket]));
+        lst_insert(h->lists[bucket], key, value);
+        sem_post(&(h->no_accessing[bucket]));
+
     }
     else
         puts("error: received NULL pointer");
 }
 
-
+/* TODO:
+ * getALL
+ * fix retorno do add, ver enunciado pag 8*/

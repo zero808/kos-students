@@ -1,6 +1,7 @@
 #include <kos_client.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <hashtable.h>
 
 int kos_init(int num_server_threads, int buf_size, int num_shards) {
 	printf ("TODO - implement me\n");
