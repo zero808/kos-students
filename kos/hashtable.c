@@ -14,8 +14,6 @@ hashtable *init_hashtable(int size)
         exit(EXIT_FAILURE);
     }
     h->size = size;
-    printf("size: %d\n", h->size);
-
 
     /* allocate memory for the pointers to the lists */
     h->lists = calloc((size_t) size, sizeof(list_t*));
