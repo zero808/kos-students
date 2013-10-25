@@ -37,11 +37,10 @@ hashtable *init_hashtable(int size)
 
 
     pthread_mutex_init(&(h->mutex_writers), NULL);
-    sem_init(&(h->teste), 0, 2);
     for(ix = 0; ix < size; ix += 1) {
         h->readers[ix] = 0;
         pthread_mutex_init(&(h->mutex_counter[ix]), NULL);
-        sem_init(&(h->no_waiting[ix]), 0, 2);
+        sem_init(&(h->no_waiting[ix]), 0, 1);
         sem_init(&(h->no_accessing[ix]), 0, HT_SIZE);
     }
 
@@ -52,8 +51,14 @@ hashtable *init_hashtable(int size)
 int delete_hashtable(hashtable *h)
 {
     if(h != NULL) {
-        int size = h->size;
+        int size = h->size, ix;
         --size;
+
+        for(ix = 0; ix < h->size; ix += 1) {
+            pthread_mutex_destroy(&(h->mutex_counter[ix]));
+            sem_destroy(&(h->no_waiting[ix]));
+            sem_destroy(&(h->no_accessing[ix]));
+        }
         /* free the memory for each list */
         do {
             lst_destroy(h->lists[size]);
@@ -85,25 +90,28 @@ int hash(char* key) {
     return i;
 }
 
-KV_t *get(hashtable *h, char *key)
+ KV_t *get(hashtable *h, char *key)
 {
     int bucket, prev, current;
     KV_t* pair;
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-        sem_wait(&(h->no_waiting[bucket]));
+        /* queue for accessing */ sem_wait(&(h->no_waiting[bucket]));
+        /* lock the mutex in order to access the counter */
         pthread_mutex_lock(&(h->mutex_counter[bucket]));
         prev = h->readers[bucket];
         h->readers[bucket] += 1;
-        
         pthread_mutex_unlock(&(h->mutex_counter[bucket]));
+        /* if there were no readers */
         if(prev == 0) {
+            /* prevent writes while there is someone already reading or
+             * writing */
             sem_wait(&(h->no_accessing[bucket]));
         }
         sem_post(&(h->no_waiting[bucket]));
         pair = lst_get(h->lists[bucket], key);
         pthread_mutex_lock(&(h->mutex_counter[bucket]));
-        
+
         h->readers[bucket] -= 1;
         current = h->readers[bucket];
         pthread_mutex_unlock(&(h->mutex_counter[bucket]));
@@ -141,28 +149,60 @@ int ht_remove(hashtable *h, char *key)
     return -1;
 }
 
-void add(hashtable *h, char *key, char *value)
+char *add(hashtable *h, char *key, char *value)
 {
     /* conta como escritor */
     int bucket;
+    char* ret = NULL;
     if((h != NULL) && (key != NULL)) {
-    /* pthread_mutex_lock(&(h->mutex_writers)); */
-    puts("teste");
-    sem_wait(&(h->teste));
-    if(errno == EAGAIN)
-        puts("nao deu");
         bucket = hash(key);
         printf("%d\n", bucket);
         sem_wait(&(h->no_waiting[bucket]));
         printf("%d\n", bucket);
         sem_wait(&(h->no_accessing[bucket]));
         sem_post(&(h->no_waiting[bucket]));
-        lst_insert(h->lists[bucket], key, value);
+        ret = lst_insert(h->lists[bucket], key, value);
         sem_post(&(h->no_accessing[bucket]));
 
     }
     else
-        puts("error: received NULL pointer");
+        /* puts("error: received NULL pointer"); */
+        return ret;
+
+    return ret;
+}
+
+KV_t* getAllKeys(hashtable *h, int* dim)
+{
+    if(h != NULL) {
+        KV_t* pairs = NULL;
+        lst_iitem_t *lst_it = NULL;
+        int counter, ix;
+        /* we check the number of elements of the lists to
+        * avoid using realloc */
+        for(ix = 0, counter = 0; ix < h->size; ix += 1) {
+            counter += lst_size(h->lists[ix]);
+        }
+        pairs = calloc((size_t) counter, sizeof(KV_t));
+        if(pairs==NULL) {
+            fprintf(stderr, "Dynamic memory allocation failed\n");
+            exit(EXIT_FAILURE);
+        }
+
+        /* for every list in the hashtable */
+        for(ix = 0; ix < h->size; ix += 1) {
+
+            /* for every element in the list */
+            for(lst_it = h->lists[ix]->first; lst_it != NULL; lst_it = lst_it->next) {
+                strncpy(pairs[ix].key, lst_it->item->key, KV_SIZE);
+                strncpy(pairs[ix].value, lst_it->item->value, KV_SIZE);
+            }
+        }
+        *dim = counter;
+        return pairs;
+    }
+    return NULL;
+
 }
 
 /* TODO:

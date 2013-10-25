@@ -27,6 +27,7 @@ list_t* lst_new()
    list = (list_t*) malloc(sizeof(list_t));
 
    list->first = NULL;
+   list->size = 0;
    return list;
 }
 
@@ -50,44 +51,11 @@ void lst_destroy(list_t *list)
     free(list);
 }
 
-
-/* void lst_insert(list_t *list, char *key, char* value) */
-/* { */
-/*     if((list != NULL) && (key != NULL) && (value != NULL)) { */
-/*         /1* if the list is empty just add it *1/ */
-/*         if(list->first == NULL) { */
-/*             list->first =  malloc(sizeof(lst_iitem_t)); */
-/*             list->first->item =  malloc(sizeof(KV_t)); */
-/*             strncpy(list->first->item->key, key, KV_SIZE); */
-/*             strncpy(list->first->item->value, value, KV_SIZE); */
-/*             list->first->next = NULL; */
-/*         } */
-/*         else { */
-/*             lst_iitem_t  *temp; */
-
-/*             /1* Traverse the list *1/ */
-/*             for(temp = list->first; temp != NULL; temp = temp->next) { */
-/*                 /1* check if there's an item using the key *1/ */
-/*                 if(strncmp(key, temp->item->key, KV_SIZE) == 0) { */
-/*                     /1* if it already exists replace its value *1/ */
-/*                     strncpy(temp->item->value, value, KV_SIZE); */
-/*                     return; */
-/*                 } */
-/*             } */
-/*             /1* If there isn't an item using this key we create a new item and */
-/*              * insert it at the end *1/ */
-/*             temp =  malloc(sizeof(lst_iitem_t)); */
-/*             temp->item = calloc(1, sizeof(KV_t)); */
-/*             strncpy(temp->item->key, key, KV_SIZE); */
-/*             strncpy(temp->item->value, value, KV_SIZE); */
-/*             temp->next = NULL; */
-/*         } */
-/*     } */
-/* } */
-void lst_insert(list_t *list, char *key, char* value)
+char* lst_insert(list_t *list, char *key, char* value)
 {
     if((list != NULL) && (key != NULL) && (value != NULL)) {
         lst_iitem_t  *tempA, *tempB;
+        /* char *oldValue = oldValue = calloc(KV_SIZE, sizeof(char)); */
 
         /* Traverse the list */
         for(tempA = list->first, tempB = list->first; tempA != NULL; tempA = tempA->next) {
@@ -96,8 +64,10 @@ void lst_insert(list_t *list, char *key, char* value)
             /* check if there's an item using the key */
             if(strncmp(key, tempA->item->key, KV_SIZE) == 0) {
                 /* if it already exists replace its value */
+                char *oldValue = calloc(KV_SIZE, sizeof(char));
+                strncpy(oldValue, tempA->item->value, KV_SIZE);
                 strncpy(tempA->item->value, value, KV_SIZE);
-                return;
+                return oldValue; /* the receiver should free the memory */
             }
         }
         /* If there isn't an item using this key we create a new item and
@@ -115,7 +85,10 @@ void lst_insert(list_t *list, char *key, char* value)
         else {
             tempB->next = tempA;
         }
+        list->size += 1;
+        /* free(oldValue); */
     }
+    return NULL;
 }
 
 /* A função lst_remove recebe uma lista e um valor e remove o primeiro item com aquele valor. */
@@ -133,6 +106,7 @@ int lst_remove(list_t *list, char *key)
             free(tempA->item);
             free(tempA);
             list->first = tempB;
+            list->size -= 1;
             return 0;
         }
         else {
@@ -145,6 +119,7 @@ int lst_remove(list_t *list, char *key)
                         free(tempA->next->item);
                         free(tempA->next);
                         tempA->next = tempB;
+                        list->size -= 1;
                         return 0;
                     }
                     else {
@@ -172,14 +147,15 @@ void lst_print(list_t *list)
 }
 
 int lst_size(list_t *list) {
-    lst_iitem_t *p = list->first;
-    int counter= 0;
-    while(p != NULL) {
-        ++counter;
-        p = p->next;
-    }
+    /* lst_iitem_t *p = list->first; */
+    /* int counter= 0; */
+    /* while(p != NULL) { */
+    /*     ++counter; */
+    /*     p = p->next; */
+    /* } */
 
-    return counter;
+    /* return counter; */
+    return list->size;
 }
 
 KV_t *lst_get(list_t *list, char* key) {

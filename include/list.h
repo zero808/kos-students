@@ -19,6 +19,7 @@ typedef struct lst_iitem {
 /* list_t */
 typedef struct {
    lst_iitem_t * first;
+   int size;
 } list_t;
 
 
@@ -30,7 +31,7 @@ list_t* lst_new();
 void lst_destroy(list_t *);
 
 /* lst_insert - insert a new item with value 'value' in list 'list' */
-void lst_insert(list_t *list, char *key, char *value);
+char* lst_insert(list_t *list, char *key, char *value);
 
 /* lst_remove - remove first item of value 'value' from list 'list' */
 int lst_remove(list_t *list, char *key);

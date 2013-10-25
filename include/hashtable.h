@@ -23,7 +23,6 @@ typedef struct hashtable {
     sem_t no_waiting[HT_SIZE];
     /* Number of threads accessing */
     sem_t no_accessing[HT_SIZE];
-    sem_t teste;
 } hashtable;
 
 hashtable* init_hashtable(int size);
@@ -31,6 +30,7 @@ int delete_hashtable(hashtable *h);
 int hash(char *key);
 KV_t *get(hashtable *h, char *key);
 int ht_remove(hashtable *h, char *key);
-void add(hashtable *h, char *key, char *value);
+char* add(hashtable *h, char *key, char *value);
+KV_t* getAllKeys(hashtable *h, int *dim);
 
 #endif

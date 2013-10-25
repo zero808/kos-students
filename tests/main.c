@@ -5,6 +5,7 @@
 #include <kos_client.h>
 
 void* add_xpto(void *arg);
+void* get_xpto(void *arg);
 
     hashtable *h = NULL;
     char key[8] = "abcdefg";
@@ -23,6 +24,14 @@ int main(int argc, char *argv[])
          exit(EXIT_FAILURE);
     }
     if(pthread_join(tid_p, NULL) != 0) {
+        puts("Error joining thread.");
+        exit(EXIT_FAILURE);
+    }
+    if(pthread_create(&tid_t1, NULL, get_xpto, (void*) NULL) != 0) {
+         puts("Error creating thread.");
+         exit(EXIT_FAILURE);
+    }
+    if(pthread_join(tid_t1, NULL) != 0) {
         puts("Error joining thread.");
         exit(EXIT_FAILURE);
     }
@@ -53,7 +62,20 @@ int main(int argc, char *argv[])
 }
 
 void* add_xpto(void *arg) {
-
     add(h, key, value);
+    return NULL;
+}
+
+void* get_xpto(void* arg) {
+    int dim;
+    int ix;
+    KV_t* pairs;
+    pairs = getAllKeys(h, &dim);
+    printf("%d\n", dim);
+
+    for(ix = 0; ix < dim; ix += 1) {
+        printf("key: %s, value: %s\n", pairs[ix].key, pairs[ix].value);
+    }
+    free(pairs);
     return NULL;
 }
