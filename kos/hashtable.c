@@ -205,6 +205,3 @@ KV_t* getAllKeys(hashtable *h, int* dim)
 
 }
 
-/* TODO:
- * getALL
- * fix retorno do add, ver enunciado pag 8*/
