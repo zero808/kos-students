@@ -34,7 +34,7 @@ void lst_destroy(list_t *);
 char* lst_insert(list_t *list, char *key, char *value);
 
 /* lst_remove - remove first item of value 'value' from list 'list' */
-int lst_remove(list_t *list, char *key);
+char *lst_remove(list_t *list, char *key);
 
 /* lst_print - print the content of list 'list' to standard output */
 void lst_print(list_t *list);
@@ -42,6 +42,6 @@ void lst_print(list_t *list);
 /* Returns the size of the list */
 int lst_size(list_t *list);
 
-KV_t *lst_get(list_t *list, char* key);
+char *lst_get(list_t *list, char* key);
 
 #endif

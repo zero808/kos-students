@@ -90,10 +90,11 @@ int hash(char* key) {
     return i;
 }
 
- KV_t *get(hashtable *h, char *key)
+char *get(hashtable *h, char *key) 
 {
     int bucket, prev, current;
-    KV_t* pair;
+    char* value = NULL;
+    char* ret = NULL;
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
         /* queue for accessing */ sem_wait(&(h->no_waiting[bucket]));
@@ -109,16 +110,23 @@ int hash(char* key) {
             sem_wait(&(h->no_accessing[bucket]));
         }
         sem_post(&(h->no_waiting[bucket]));
-        pair = lst_get(h->lists[bucket], key);
+        value = lst_get(h->lists[bucket], key);
         pthread_mutex_lock(&(h->mutex_counter[bucket]));
-
         h->readers[bucket] -= 1;
         current = h->readers[bucket];
         pthread_mutex_unlock(&(h->mutex_counter[bucket]));
         if(current == 0) {
             sem_post(&(h->no_accessing[bucket]));
         }
-        return pair;
+        if(value != NULL) {
+            ret = calloc((size_t)(KV_SIZE), sizeof(char));
+            if(ret==NULL) {
+                fprintf(stderr, "Dynamic memory allocation failed\n");
+                exit(EXIT_FAILURE);
+            }
+            strncpy(ret, value, KV_SIZE);
+        }
+        return ret;
     }
     else {
         puts("error: received NULL pointer");
@@ -128,9 +136,10 @@ int hash(char* key) {
     return NULL;
 }
 
-int ht_remove(hashtable *h, char *key)
+char *ht_remove(hashtable *h, char *key)
 {
-    int bucket, ret;
+    int bucket;
+    char *ret;
     /*  se nao houver nem leitores nem escritores */
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
@@ -143,10 +152,10 @@ int ht_remove(hashtable *h, char *key)
     }
     else {
         puts("error: received NULL pointer");
-        return -1;
+        return NULL;
     }
     /* it will never get here, but at least the compiler won't complain */
-    return -1;
+    return NULL;
 }
 
 char *add(hashtable *h, char *key, char *value)
