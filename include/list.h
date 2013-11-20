@@ -22,7 +22,7 @@ typedef struct {
    int size;
 } list_t;
 
-
+/* NOTE: the string returned by lst_insert, lst_remove and lst_get if different than NULL should be freed by the caller */
 
 /* lst_new - allocates memory for list_t and initializes it */
 list_t* lst_new();

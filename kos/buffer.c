@@ -23,8 +23,8 @@ buffer* init_buffer(int size)
 
     for(ix = 0; ix < size; ix += 1) {
         sem_init(&(b[ix].waiting), 0, 1);
-	sem_wait(&(b[ix].waiting));
-	pthread_mutex_init(&(b[ix].buffer_mutex), NULL);
+        sem_wait(&(b[ix].waiting));
+        pthread_mutex_init(&(b[ix].buffer_mutex), NULL);
         b[ix].pair = NULL;
         b[ix].modified = 0;
     }
@@ -50,34 +50,35 @@ int write_buffer(buffer *b, int pos, int clientID, int shardID, int op, char *ke
     }
 
     if (op == OP_GET && id == SERVER) {
-	if (value == NULL) {
-		b[pos].modified = 0;
-    	} 
-	else {
-		strncpy(b[pos].value, value, KV_SIZE);
-		b[pos].modified = 1;
-	}
-    }
-
-    if (op == OP_PUT && id == SERVER) {
-	if (value == NULL) {
-		b[pos].modified = 0;
-    	} 
-	else {
-		strncpy(b[pos].value, value, KV_SIZE);
-		b[pos].modified = 1;
-	}
-    }
-
-    if (op == OP_REMOVE && id == SERVER) {
         if (value == NULL) {
             b[pos].modified = 0;
-        } 
+        }
         else {
             strncpy(b[pos].value, value, KV_SIZE);
             b[pos].modified = 1;
         }
     }
+
+    if (op == OP_PUT && id == SERVER) {
+        if (value == NULL) {
+            b[pos].modified = 0;
+        }
+        else {
+            strncpy(b[pos].value, value, KV_SIZE);
+            b[pos].modified = 1;
+        }
+    }
+
+    if (op == OP_REMOVE && id == SERVER) {
+        if (value == NULL) {
+            b[pos].modified = 0;
+        }
+        else {
+            strncpy(b[pos].value, value, KV_SIZE);
+            b[pos].modified = 1;
+        }
+    }
+    /* onde anda o get_allkeys? */
 
     if (key != NULL) {
         strncpy(b[pos].key, key, KV_SIZE);

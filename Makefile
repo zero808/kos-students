@@ -8,12 +8,12 @@ SUBDIRS =  kos tests
 # GRUPO = indicar o numero do grupo
 # ALUNO1/ALUNO2/ALUNO3 = indicar os numeros dos alunos
 #
-CAMPUS=
-CURSO=
-GRUPO=
-ALUNO1=
-ALUNO2=
-ALUNO3=
+CAMPUS=A
+CURSO=LEIC
+GRUPO=109
+ALUNO1=64752
+ALUNO2=66360
+ALUNO3=69779
 
 CFLAGS = -g -O0 -Wall -pthread
 

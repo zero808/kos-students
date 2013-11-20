@@ -1,6 +1,5 @@
 #SRCS=test_kos_single_threaded.c 
-# SRCS=test_kos_multi_threaded.c
-SRCS=main.c
+SRCS=test_kos_multi_threaded.c
 OBJS=${SRCS:.c=}
 
 INCLUDES = -I. -I$(srcdir) -I../include -I ../include 

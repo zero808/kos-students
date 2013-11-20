@@ -41,6 +41,7 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
     for(ix = 0; ix < num_shards; ix += 1) {
         shards[ix] = init_hashtable(HT_SIZE);
     }
+    /* arranjar maneira de no fim libertar a memoria das shards */
 
     for(ix = 0; ix < num_server_threads; ix += 1) {
         if(pthread_create(&threads[ix], NULL, &server_thread, NULL) != 0) {
@@ -116,7 +117,6 @@ char* kos_put(int clientid, int shardId, char* key, char* value)
         return ret;
     }
     else {
-        
         sem_post(&sem_client);
         return NULL;
     }
@@ -192,21 +192,26 @@ void *server_thread(void *arg)
         pthread_mutex_unlock(&position_mutex);
 
         switch(b[pos].op) {
+            /* always free the char* returned by the hashtable's functions! */
             case OP_PUT:
                 oldvalue = add(shards[b[pos].num_shard], b[pos].key, b[pos].value);
                 write_buffer(b, pos, -1, -1, OP_PUT, NULL, oldvalue, NULL, SERVER);
+                free(oldvalue); /* if it's null it won't do anything */
                 break;
             case OP_REMOVE:
                 oldvalue = ht_remove(shards[b[pos].num_shard], b[pos].key);
                 write_buffer(b, pos, -1, -1, OP_REMOVE, NULL, oldvalue, NULL, SERVER);
+                free(oldvalue);
                 break;
             case OP_GET:
                 oldvalue = get(shards[b[pos].num_shard], b[pos].key);
                 write_buffer(b, pos, -1, -1, OP_GET, NULL, oldvalue, NULL, SERVER);
+                free(oldvalue);
                 break;
             case OP_GETALL:
                 pair = getAllKeys(shards[b[pos].num_shard], &(b[pos].dimension));
                 write_buffer(b, pos, -1, -1, OP_GETALL, NULL, NULL, pair,SERVER);
+                free(pair);
                 break;
             default:
                 break;

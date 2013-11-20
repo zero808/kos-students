@@ -6,23 +6,28 @@
 #include <semaphore.h>
 #include <pthread.h>
 #define HT_SIZE 10
+#define FALSE 0
+#define TRUE 1
 
 typedef struct hashtable {
     /* number of elements */
     int size;
-    /* number of readers */
-    int readers[HT_SIZE];
     /* pointers to the lists */
     list_t **lists;
-    /* only one writer can write in a given list at a time but
-     * there can be several writers writing in different lists */
-    pthread_mutex_t mutex_writers;
-    /* mutexes for accessing the number of readers of each list */
-    pthread_mutex_t mutex_counter[HT_SIZE];
-    /* Number of threads queued */
-    sem_t no_waiting[HT_SIZE];
-    /* Number of threads accessing */
-    sem_t no_accessing[HT_SIZE];
+    /* number of readers (per list) */
+    int readers[HT_SIZE];
+    /* has the value 1 if someone is writing, 0 otherwise */
+    short int writing[HT_SIZE];
+    /* Amount of readers waiting for accessing a given list */
+    int readers_waiting[HT_SIZE];
+    /* Amount of writers waiting for accessing a given list */
+    int writers_waiting[HT_SIZE];
+    /* Semaphore for the readers */
+    sem_t s_readers[HT_SIZE];
+    /* Semaphore for the writers */
+    sem_t s_writers[HT_SIZE];
+    /* Mutex for accessing shared information of a given list */
+    pthread_mutex_t ht_mutex[HT_SIZE];
 } hashtable;
 
 hashtable* init_hashtable(int size);
@@ -34,3 +39,4 @@ char* add(hashtable *h, char *key, char *value);
 KV_t* getAllKeys(hashtable *h, int *dim);
 
 #endif
+

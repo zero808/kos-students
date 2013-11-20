@@ -12,6 +12,7 @@
 /*    } */
 /*    return list; */
 /* } */
+
 list_t* lst_new()
 {
    list_t *list;
@@ -155,15 +156,23 @@ int lst_size(list_t *list) {
 }
 
 char *lst_get(list_t *list, char* key) {
+    char *ret = NULL;
     lst_iitem_t  *temp;
 
     temp = list->first;
     while(temp != NULL) {
         if(!strncmp(key, temp->item->key, KV_SIZE)) {
-            return temp->item->value;
+            ret = calloc((size_t) KV_SIZE, sizeof(char));
+            if(ret==NULL) {
+                fprintf(stderr, "Dynamic memory allocation failed\n");
+                exit(EXIT_FAILURE);
+            }
+            strncpy(ret, temp->item->value, KV_SIZE);
+            /* TODO: this return is most likely unneeded */
+            return ret;
         }
         else
             temp = temp->next;
     }
-    return NULL;
+    return ret;
 }

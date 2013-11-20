@@ -1,4 +1,4 @@
-OBJECTS=kos.o delay.o hash.o list.o hashtable.o
+OBJECTS=kos.o delay.o hash.o list.o hashtable.o buffer.o
 
 DEFAULT_INCLUDES = -I.   
 INCLUDES = -I ../include
