@@ -4,6 +4,11 @@
 #include <unistd.h>
 #include <errno.h>
 
+void start_reading(hashtable *h, int bucket);
+void finish_reading(hashtable *h, int bucket);
+void start_writing(hashtable *h, int bucket);
+void finish_writing(hashtable *h, int bucket);
+
 hashtable *init_hashtable(int size)
 {
     int ix;
@@ -110,38 +115,9 @@ char *get(hashtable *h, char *key)
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-
-        /* inicia_leitura() pag. 225 do livro */
-        pthread_mutex_lock(&(h->ht_mutex[bucket]));
-        if(h->writing[bucket] || h->writers_waiting[bucket] > 0) {
-            ++h->readers_waiting[bucket];
-            pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-            sem_wait(&(h->s_readers[bucket]));
-            pthread_mutex_lock(&(h->ht_mutex[bucket]));
-            if(h->readers_waiting > 0) {
-                ++h->readers[bucket];
-                --h->readers_waiting[bucket];
-                sem_post(&(h->s_readers[bucket]));
-            }
-        }
-        else {
-            ++h->readers[bucket];
-        }
-        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-
-        /* FIXME: chamar lst_get em lock? */
+        start_reading(h, bucket);
         value = lst_get(h->lists[bucket], key);
-
-        /* acaba_leitura() */
-        pthread_mutex_lock(&(h->ht_mutex[bucket]));
-        --h->readers[bucket];
-        if((h->readers[bucket] == 0) && (h->writers_waiting[bucket] > 0)) {
-            sem_post(&(h->s_writers[bucket]));
-            h->writing[bucket] = TRUE;
-            --h->readers_waiting[bucket];
-        }
-        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-        /* return value; */
+        finish_reading(h, bucket);
     }
     else {
         puts("error: received NULL pointer");
@@ -157,34 +133,9 @@ char *ht_remove(hashtable *h, char *key)
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-
-        /* inicia_escrita() */
-        pthread_mutex_lock(&(h->ht_mutex[bucket]));
-        if(h->writing[bucket] || (h->readers[bucket] > 0) || (h->readers_waiting[bucket] > 0)) {
-            ++h->writers_waiting[bucket];
-            pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-            sem_wait(&(h->s_writers[bucket]));
-            pthread_mutex_lock(&(h->ht_mutex[bucket]));
-        }
-        h->writing[bucket] = TRUE;
-        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-
+        start_writing(h, bucket);
         ret = lst_remove(h->lists[bucket], key);
-
-        /* acaba escrita() */
-        pthread_mutex_lock(&(h->ht_mutex[bucket]));
-        h->writing[bucket] = FALSE;
-        if(h->readers_waiting[bucket] > 0) {
-            sem_post(&(h->s_readers[bucket]));
-            ++h->readers[bucket];
-            --h->readers_waiting[bucket];
-        }
-        else if(h->writers_waiting[bucket] > 0) {
-            sem_post(&(h->s_writers[bucket]));
-            h->writing[bucket] = TRUE;
-            --h->writers_waiting[bucket];
-        }
-        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
+        finish_writing(h, bucket);
 
     }
     else {
@@ -200,35 +151,9 @@ char *add(hashtable *h, char *key, char *value)
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-
-        /* inicia_escrita() */
-        pthread_mutex_lock(&(h->ht_mutex[bucket]));
-        if(h->writing[bucket] || (h->readers[bucket] > 0) || (h->readers_waiting[bucket] > 0)) {
-            ++h->writers_waiting[bucket];
-            pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-            sem_wait(&(h->s_writers[bucket]));
-            pthread_mutex_lock(&(h->ht_mutex[bucket]));
-        }
-        h->writing[bucket] = TRUE;
-        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-
+        start_writing(h, bucket);
         ret = lst_insert(h->lists[bucket], key, value);
-
-        /* acaba escrita() */
-        pthread_mutex_lock(&(h->ht_mutex[bucket]));
-        h->writing[bucket] = FALSE;
-        if(h->readers_waiting[bucket] > 0) {
-            sem_post(&(h->s_readers[bucket]));
-            ++h->readers[bucket];
-            --h->readers_waiting[bucket];
-        }
-        else if(h->writers_waiting[bucket] > 0) {
-            sem_post(&(h->s_writers[bucket]));
-            h->writing[bucket] = TRUE;
-            --h->writers_waiting[bucket];
-        }
-        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-
+        finish_writing(h, bucket);
     }
     else {
         puts("error: received NULL pointer");
@@ -236,6 +161,8 @@ char *add(hashtable *h, char *key, char *value)
     return ret;
 }
 
+/* FIXME
+ * either lock up the whole structure or one list at a time */
 KV_t* getAllKeys(hashtable *h, int* dim)
 {
     if(h != NULL) {
@@ -269,3 +196,66 @@ KV_t* getAllKeys(hashtable *h, int* dim)
 
 }
 
+/* Implementation for the Readers-Writers problem, page 225
+ * Use these functions to avoid repeated code */
+void start_reading(hashtable *h, int bucket)
+{
+    pthread_mutex_lock(&(h->ht_mutex[bucket]));
+    if(h->writing[bucket] || h->writers_waiting[bucket] > 0) {
+        ++h->readers_waiting[bucket];
+        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
+        sem_wait(&(h->s_readers[bucket]));
+        pthread_mutex_lock(&(h->ht_mutex[bucket]));
+        if(h->readers_waiting > 0) {
+            ++h->readers[bucket];
+            --h->readers_waiting[bucket];
+            sem_post(&(h->s_readers[bucket]));
+        }
+    }
+    else {
+        ++h->readers[bucket];
+    }
+    pthread_mutex_unlock(&(h->ht_mutex[bucket]));
+}
+
+void finish_reading(hashtable *h, int bucket)
+{
+    pthread_mutex_lock(&(h->ht_mutex[bucket]));
+    --h->readers[bucket];
+    if((h->readers[bucket] == 0) && (h->writers_waiting[bucket] > 0)) {
+        sem_post(&(h->s_writers[bucket]));
+        h->writing[bucket] = TRUE;
+        --h->readers_waiting[bucket];
+    }
+    pthread_mutex_unlock(&(h->ht_mutex[bucket]));
+}
+
+void start_writing(hashtable *h, int bucket)
+{
+    pthread_mutex_lock(&(h->ht_mutex[bucket]));
+    if(h->writing[bucket] || (h->readers[bucket] > 0) || (h->readers_waiting[bucket] > 0)) {
+        ++h->writers_waiting[bucket];
+        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
+        sem_wait(&(h->s_writers[bucket]));
+        pthread_mutex_lock(&(h->ht_mutex[bucket]));
+    }
+    h->writing[bucket] = TRUE;
+    pthread_mutex_unlock(&(h->ht_mutex[bucket]));
+}
+
+void finish_writing(hashtable *h, int bucket)
+{
+    pthread_mutex_lock(&(h->ht_mutex[bucket]));
+    h->writing[bucket] = FALSE;
+    if(h->readers_waiting[bucket] > 0) {
+        sem_post(&(h->s_readers[bucket]));
+        ++h->readers[bucket];
+        --h->readers_waiting[bucket];
+    }
+    else if(h->writers_waiting[bucket] > 0) {
+        sem_post(&(h->s_writers[bucket]));
+        h->writing[bucket] = TRUE;
+        --h->writers_waiting[bucket];
+    }
+    pthread_mutex_unlock(&(h->ht_mutex[bucket]));
+}
