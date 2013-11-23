@@ -33,6 +33,15 @@ typedef struct _buffer {
     short int modified;
 } buffer;
 
+/* TODO
+ * Criar:
+typedef struct buffer {
+    int size;
+    item **items;
+} buffer;
+e renomear _buffer para item para ficar mais óbvio
+*/
+
 buffer* init_buffer(int size);
 int write_buffer(buffer *b, int pos, int clientID, int shardID, int op, char *key, char *value, KV_t *pair, int id);
 /* int read_buffer(buffer *b, int pos, int clientID, int shardID); */

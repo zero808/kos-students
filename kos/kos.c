@@ -221,3 +221,55 @@ void *server_thread(void *arg)
         /* sem_post(&sem_client); */
     }
 }
+
+/* Producer-Consumer problem - page 239, 1st edition */
+/* we pass a semaphore because the both client threads and server are
+ * producers and consumers afterwards and vice-versa */
+/* void producer(int pos_prior, sem_t *semaphore_p, sem_t *semaphore_c) */
+/* TODO
+ * MUDAR O RETORNO PARA INT E RETORNAR A POS
+ * TRANCA(POS) {
+ * SEM_WAIT(B[POS].WAITING); E O SERVER DESTRANCA
+ * O CLIENT LE A RESPOSTA
+ *  E SAI
+ * }*/
+void producer(int pos_prior, int clientid, int shardId, int op, char *key, char *value, KV_t *pair)
+{
+    int pos;
+    buffer *item;
+    /* TODO mudar para init_item ou o caralho */
+    item = init_buffer(1);
+    write_buffer(item, clientid, shardID, op, key, value, op, pair);
+
+    /* sem_wait(semaphore_p); */
+    sem_wait(&semCanProd);
+    pthread_mutex_lock(&mutex);
+    if(pos_prior == -1) {
+        pos = index_producer++;
+        index_producer %= buffer_size;
+    }
+    else {
+        pos = pos_prior;
+    }
+    b[pos] = item;
+    pthread_mutex_unlock(&mutex);
+    /* sem_post(semaphore_c); */
+    sem_post(&semCanCons);
+}
+
+/* TODO CORRIGIR ESTA MERDA */
+void consumer(int pos_prior, sem_t *semaphore_p, sem_t *semaphore_c)
+{
+    int pos;
+    /* we return the adress of the buffer position */
+    buffer *b_pos = NULL;
+    sem_wait(semaphore_c);
+    pthread_mutex_lock(&mutex);
+    if(pos_prior != -1) {
+        pos = index_producer++;
+        index_producer %= buffer_size;
+    }
+    else {
+        pos = pos_prior;
+    }
+}
