@@ -12,38 +12,46 @@
 #define OP_GET 2
 #define OP_REMOVE 3
 #define OP_GETALL 4
-#define CLIENT 0
-#define SERVER 1
+#define DONOTCHANGE -1
 
 
-typedef struct _buffer {
+typedef struct _item {
+    /* The client ID */
     int clientID;
-    int num_shard;
+    /* the number of the shard to use */
+    int shardID;
     /* for kos_getAllKeys */
     int dimension;
+    /* the code of the operation */
     int op;
-    char value[KV_SIZE];
     char key[KV_SIZE];
+    /* char value[KV_SIZE]; */
+    /* for simplicity value will be dinamically allocated
+     * (until we find something more clever...) */
+    char *value;
     KV_t *pair;
-    pthread_mutex_t buffer_mutex;
+    /* pthread_mutex_t buffer_mutex; */
     /* to wait for the server to put the answer on the buffer */
     /* pthread_mutex_t waiting; */
     sem_t waiting;
     /* this is used to know when the string should be null */
-    short int modified;
-} buffer;
+    /* short int modified; */
+} item;
 
-/* TODO
- * Criar:
-typedef struct buffer {
+typedef struct _buffer {
     int size;
+    /* instead of the client putting the request on the buffer and
+     * waiting for the server to reply, we just put there the address
+     * of an item and the server just writes to that adress */
     item **items;
 } buffer;
-e renomear _buffer para item para ficar mais óbvio
-*/
 
+item* init_item();
+void destroy_item(item *i);
 buffer* init_buffer(int size);
-int write_buffer(buffer *b, int pos, int clientID, int shardID, int op, char *key, char *value, KV_t *pair, int id);
-/* int read_buffer(buffer *b, int pos, int clientID, int shardID); */
 void destroy_buffer(buffer *b);
+void write_item(item *i, int clientID, int shardID, int op, char *key, char *value, KV_t *pair);
+/* int write_item(item *i, int clientID, int shardID, int op, char *key, char *value, KV_t *pair); */
+/* int write_buffer(buffer *b, int clientID, int shardID, int op, char *key, char *value, KV_t *pair, int id); */
+/* int read_buffer(buffer *b, int pos, int clientID, int shardID); */
 #endif

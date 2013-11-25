@@ -6,29 +6,27 @@
 #include <hashtable.h>
 #include <delay.h>
 
-#define SERVER 1
-#define CLIENT 0
-
-void *server_thread(void *arg);
 hashtable **shards = NULL;
 buffer *b = NULL;
-sem_t sem_client;
-sem_t sem_server;
-pthread_mutex_t position_mutex;
-unsigned int client_position = 0;
-unsigned int server_position = 0;
-unsigned int buffer_size = 0;
+
+/* Variables and functions needed for the producers-consumers problem */
+int index_producer = 0, index_consumer = 0;
+pthread_mutex_t mutex;
+sem_t semCanProd, semCanCons;
+void op_handler(item *i);
+void producer(item *ip);
+void consumer();
+void *server_thread(void *arg);
 
 int kos_init(int num_server_threads, int buf_size, int num_shards)
 {
 
-    int ix;
-    /* hashtable **ss = NULL; */
+    int ix = 0;
+
     b = init_buffer(buf_size);
-    buffer_size = buf_size;
-    sem_init(&sem_client, 0, buf_size);
-    sem_init(&sem_server, 0, 0);
-    pthread_mutex_init(&position_mutex, NULL);
+    sem_init(&semCanProd, 0, buf_size);
+    sem_init(&semCanCons, 0, 0);
+    pthread_mutex_init(&mutex, NULL);
     pthread_t* threads=(pthread_t*)calloc(num_server_threads, sizeof(pthread_t));
 
 
@@ -62,214 +60,158 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
 
 char* kos_get(int clientid, int shardId, char* key)
 {
-    int pos;
+    char *ret = NULL;
+    item *i = NULL;
+    i = init_item();
 
     /*delay();*/
-    sem_wait(&sem_client);
-    pthread_mutex_lock(&position_mutex);
-    ++client_position;
-    client_position %= buffer_size;
-    pos = client_position;
-    pthread_mutex_unlock(&position_mutex);
-    write_buffer(b, pos, clientid, shardId, OP_GET, key, NULL, NULL,CLIENT);
-    sem_post(&sem_server);
-    /* pthread_mutex_lock(&(b[pos].waiting)); */
-    sem_wait(&(b[pos].waiting));
-    /*  LOCK  */
-    if(b[pos].modified == 1){
-
-        sem_post(&sem_client);
-        return b[pos].value;
+    write_item(i, clientid, shardId, OP_GET, key, NULL, NULL);
+    producer(i);
+    if(i->value != NULL) {
+        ret = calloc((size_t)(KV_SIZE), sizeof(char));
+        if(ret==NULL) {
+            fprintf(stderr, "Dynamic memory allocation failed\n");
+            exit(EXIT_FAILURE);
+        }
+        strncpy(ret, i->value, KV_SIZE);
     }
-    else {
-
-        sem_post(&sem_client);
-        return NULL;
-    }
+    destroy_item(i);
+    return ret;
 }
 
 
 char* kos_put(int clientid, int shardId, char* key, char* value)
 {
-    int pos;
     char *ret = NULL;
+    item *i = NULL;
+    i = init_item();
 
     /*delay();*/
-    sem_wait(&sem_client);
-    pthread_mutex_lock(&position_mutex);
-    ++client_position;
-    client_position %= buffer_size;
-    pos = client_position;
-    pthread_mutex_unlock(&position_mutex);
-    write_buffer(b, pos, clientid, shardId, OP_PUT, key, value, NULL, CLIENT);
-    sem_post(&sem_server);
-    /* pthread_mutex_lock(&(b[pos].waiting)); */
-    sem_wait(&(b[pos].waiting));
-    if(b[pos].modified == 1){
+    write_item(i, clientid, shardId, OP_PUT, key, value, NULL);
+    producer(i);
+    if(i->value != NULL) {
         ret = calloc((size_t)(KV_SIZE), sizeof(char));
         if(ret==NULL) {
             fprintf(stderr, "Dynamic memory allocation failed\n");
             exit(EXIT_FAILURE);
         }
-        strncpy(ret, b[pos].value, KV_SIZE);
-
-        sem_post(&sem_client);
-        return ret;
+        strncpy(ret, i->value, KV_SIZE);
     }
-    else {
-        sem_post(&sem_client);
-        return NULL;
-    }
+    destroy_item(i);
+    return ret;
 }
 
 char* kos_remove(int clientid, int shardId, char* key)
 {
-    int pos;
     char *ret = NULL;
+    item *i = NULL;
+    i = init_item();
 
     /*delay();*/
-    sem_wait(&sem_client);
-    pthread_mutex_lock(&position_mutex);
-    ++client_position;
-    client_position %= buffer_size;
-    pos = client_position;
-    pthread_mutex_unlock(&position_mutex);
-    write_buffer(b, pos, clientid, shardId, OP_REMOVE, key, NULL, NULL, CLIENT);
-    sem_post(&sem_server);
-    /* pthread_mutex_lock(&(b[pos].waiting)); */
-    sem_wait(&(b[pos].waiting));
-    if(b[pos].modified == 1){
+    write_item(i, clientid, shardId, OP_REMOVE, key, NULL, NULL);
+    producer(i);
+    if(i->value != NULL) {
         ret = calloc((size_t)(KV_SIZE), sizeof(char));
         if(ret==NULL) {
             fprintf(stderr, "Dynamic memory allocation failed\n");
             exit(EXIT_FAILURE);
         }
-        strncpy(ret, b[pos].value, KV_SIZE);
-
-        sem_post(&sem_client);
-        return ret;
+        strncpy(ret, i->value, KV_SIZE);
     }
-    else {
-
-        sem_post(&sem_client);
-        return NULL;
-    }
+    destroy_item(i);
+    return ret;
 }
 
 KV_t* kos_getAllKeys(int clientid, int shardId, int* dim)
 {
-    int pos;
+    item *i = NULL;
+    KV_t *pair;
+    i = init_item();
 
     /*delay();*/
-    sem_wait(&sem_client);
-    pthread_mutex_lock(&position_mutex);
-    ++client_position;
-    client_position %= buffer_size;
-    pos = client_position;
-    pthread_mutex_unlock(&position_mutex);
-    write_buffer(b, pos, clientid, shardId, OP_GETALL, NULL, NULL, NULL, CLIENT);
-    sem_post(&sem_server);
-    /* pthread_mutex_lock(&(b[pos].waiting)); */
-    sem_wait(&(b[pos].waiting));
-    *dim = b[pos].dimension;
-    return b[pos].pair;
+    write_item(i, clientid, shardId, OP_GETALL, NULL, NULL, NULL);
+    producer(i);
+    *dim = i->dimension;
+    pair = i->pair;
+    destroy_item(i);
+    return pair;
 }
 
-void *server_thread(void *arg)
-{
-    int pos;
-    char *oldvalue = NULL;
-    KV_t *pair = NULL;
-
-    while(1) {
-        /*delay();*/
-        sem_wait(&sem_server);
-        pthread_mutex_lock(&position_mutex);
-        /* get the correct positiong of the buffer */
-        ++server_position;
-        server_position %= buffer_size;
-        pos = server_position;
-        pthread_mutex_unlock(&position_mutex);
-
-        switch(b[pos].op) {
-            /* always free the char* returned by the hashtable's functions! */
-            case OP_PUT:
-                oldvalue = add(shards[b[pos].num_shard], b[pos].key, b[pos].value);
-                write_buffer(b, pos, -1, -1, OP_PUT, NULL, oldvalue, NULL, SERVER);
-                free(oldvalue); /* if it's null it won't do anything */
-                break;
-            case OP_REMOVE:
-                oldvalue = ht_remove(shards[b[pos].num_shard], b[pos].key);
-                write_buffer(b, pos, -1, -1, OP_REMOVE, NULL, oldvalue, NULL, SERVER);
-                free(oldvalue);
-                break;
-            case OP_GET:
-                oldvalue = get(shards[b[pos].num_shard], b[pos].key);
-                write_buffer(b, pos, -1, -1, OP_GET, NULL, oldvalue, NULL, SERVER);
-                free(oldvalue);
-                break;
-            case OP_GETALL:
-                pair = getAllKeys(shards[b[pos].num_shard], &(b[pos].dimension));
-                write_buffer(b, pos, -1, -1, OP_GETALL, NULL, NULL, pair,SERVER);
-                free(pair);
-                break;
-            default:
-                break;
-        }
-        /* pthread_mutex_unlock(&(b[pos].waiting)); */
-        sem_post(&(b[pos].waiting));
-        /* sem_post(&sem_client); */
-    }
-}
 
 /* Producer-Consumer problem - page 239, 1st edition */
 /* we pass a semaphore because the both client threads and server are
  * producers and consumers afterwards and vice-versa */
 /* void producer(int pos_prior, sem_t *semaphore_p, sem_t *semaphore_c) */
-/* TODO
- * MUDAR O RETORNO PARA INT E RETORNAR A POS
- * TRANCA(POS) {
- * SEM_WAIT(B[POS].WAITING); E O SERVER DESTRANCA
- * O CLIENT LE A RESPOSTA
- *  E SAI
- * }*/
-void producer(int pos_prior, int clientid, int shardId, int op, char *key, char *value, KV_t *pair)
+/* int  producer(int pos_prior, int clientid, int shardId, int op, char *key, char *value, KV_t *pair) */
+void producer(item *ip)
 {
     int pos;
-    buffer *item;
-    /* TODO mudar para init_item ou o caralho */
-    item = init_buffer(1);
-    write_buffer(item, clientid, shardID, op, key, value, op, pair);
-
-    /* sem_wait(semaphore_p); */
     sem_wait(&semCanProd);
     pthread_mutex_lock(&mutex);
-    if(pos_prior == -1) {
-        pos = index_producer++;
-        index_producer %= buffer_size;
-    }
-    else {
-        pos = pos_prior;
-    }
-    b[pos] = item;
+    pos = index_producer++;
+    index_producer %= b->size;
+    b->items[pos] = ip;
     pthread_mutex_unlock(&mutex);
-    /* sem_post(semaphore_c); */
     sem_post(&semCanCons);
+    /* lock ourselves until the server processes our request */
+    sem_wait(&(ip->waiting));
 }
 
-/* TODO CORRIGIR ESTA MERDA */
-void consumer(int pos_prior, sem_t *semaphore_p, sem_t *semaphore_c)
+void op_handler(item *i)
+{
+    char *oldvalue = NULL;
+    KV_t *pair = NULL;
+        switch(i->op) {
+            /* always free the char* returned by the hashtable's functions! */
+            case OP_PUT:
+                oldvalue = add(shards[i->shardID], i->key, i->value);
+                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue, NULL);
+                free(oldvalue); /* if it's null it won't do anything */
+                break;
+            case OP_REMOVE:
+                oldvalue = ht_remove(shards[i->shardID], i->key);
+                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue, NULL);
+                free(oldvalue);
+                break;
+            case OP_GET:
+                oldvalue = get(shards[i->shardID], i->key);
+                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue, NULL);
+                free(oldvalue);
+                break;
+            case OP_GETALL:
+                pair = getAllKeys(shards[i->shardID], &(i->dimension));
+                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, NULL, pair);
+                free(pair);
+                break;
+            default:
+                break;
+        }
+}
+
+void consumer()
 {
     int pos;
-    /* we return the adress of the buffer position */
-    buffer *b_pos = NULL;
-    sem_wait(semaphore_c);
+    item *i = NULL;
+    sem_wait(&semCanCons);
     pthread_mutex_lock(&mutex);
-    if(pos_prior != -1) {
-        pos = index_producer++;
-        index_producer %= buffer_size;
-    }
-    else {
-        pos = pos_prior;
+    pos = index_consumer++;
+    index_consumer %= b->size;
+    i = b->items[pos];
+    b->items[pos] = NULL;
+    pthread_mutex_unlock(&mutex);
+    sem_post(&semCanProd);
+    /* uses  i */
+    op_handler(i);
+    /* awakes the client */
+    sem_post(&(i->waiting));
+}
+
+void *server_thread(void *arg)
+{
+
+    while(1) {
+        /*delay();*/
+        consumer();
     }
 }
+
