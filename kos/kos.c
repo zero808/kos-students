@@ -6,8 +6,10 @@
 #include <hashtable.h>
 #include <delay.h>
 
+/* TODO find a way to free all this memory when the program finishes running */
 hashtable **shards = NULL;
 buffer *b = NULL;
+pthread_t* threads = NULL;
 
 /* Variables and functions needed for the producers-consumers problem */
 int index_producer = 0, index_consumer = 0;
@@ -27,7 +29,7 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
     sem_init(&semCanProd, 0, buf_size);
     sem_init(&semCanCons, 0, 0);
     pthread_mutex_init(&mutex, NULL);
-    pthread_t* threads=(pthread_t*)calloc(num_server_threads, sizeof(pthread_t));
+    threads=(pthread_t*)calloc(num_server_threads, sizeof(pthread_t));
 
 
     shards = calloc((size_t)(num_shards), sizeof(hashtable*));
@@ -68,7 +70,7 @@ char* kos_get(int clientid, int shardId, char* key)
     write_item(i, clientid, shardId, OP_GET, key, NULL, NULL);
     producer(i);
     if(i->value != NULL) {
-        ret = calloc((size_t)(KV_SIZE), sizeof(char));
+        ret = calloc(KV_SIZE, sizeof(char));
         if(ret==NULL) {
             fprintf(stderr, "Dynamic memory allocation failed\n");
             exit(EXIT_FAILURE);
@@ -90,7 +92,7 @@ char* kos_put(int clientid, int shardId, char* key, char* value)
     write_item(i, clientid, shardId, OP_PUT, key, value, NULL);
     producer(i);
     if(i->value != NULL) {
-        ret = calloc((size_t)(KV_SIZE), sizeof(char));
+        ret = calloc(KV_SIZE, sizeof(char));
         if(ret==NULL) {
             fprintf(stderr, "Dynamic memory allocation failed\n");
             exit(EXIT_FAILURE);
@@ -111,7 +113,7 @@ char* kos_remove(int clientid, int shardId, char* key)
     write_item(i, clientid, shardId, OP_REMOVE, key, NULL, NULL);
     producer(i);
     if(i->value != NULL) {
-        ret = calloc((size_t)(KV_SIZE), sizeof(char));
+        ret = calloc(KV_SIZE, sizeof(char));
         if(ret==NULL) {
             fprintf(stderr, "Dynamic memory allocation failed\n");
             exit(EXIT_FAILURE);
@@ -166,22 +168,22 @@ void op_handler(item *i)
             case OP_PUT:
                 oldvalue = add(shards[i->shardID], i->key, i->value);
                 write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue, NULL);
-                free(oldvalue); /* if it's null it won't do anything */
+                /* free(oldvalue); /1* if it's null it won't do anything *1/ */
                 break;
             case OP_REMOVE:
                 oldvalue = ht_remove(shards[i->shardID], i->key);
                 write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue, NULL);
-                free(oldvalue);
+                /* free(oldvalue); */
                 break;
             case OP_GET:
                 oldvalue = get(shards[i->shardID], i->key);
                 write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue, NULL);
-                free(oldvalue);
+                /* free(oldvalue); */
                 break;
             case OP_GETALL:
                 pair = getAllKeys(shards[i->shardID], &(i->dimension));
                 write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, NULL, pair);
-                free(pair);
+                /* free(pair); */
                 break;
             default:
                 break;

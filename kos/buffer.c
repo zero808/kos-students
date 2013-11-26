@@ -11,11 +11,11 @@ item* init_item()
         exit(EXIT_FAILURE);
     }
 
-    i->value = calloc(KV_SIZE, sizeof(char));
-    if(i->value==NULL) {
-        fprintf(stderr, "Dynamic memory allocation failed\n");
-        exit(EXIT_FAILURE);
-    }
+    /* i->value = calloc(KV_SIZE, sizeof(char)); */
+    /* if(i->value==NULL) { */
+    /*     fprintf(stderr, "Dynamic memory allocation failed\n"); */
+    /*     exit(EXIT_FAILURE); */
+    /* } */
     i->value = NULL;
     i->pair = NULL;
 
@@ -85,22 +85,19 @@ void write_item(item *i, int clientID, int shardID, int op, char *key, char *val
         if(key != NULL){
             strncpy(i->key, key, KV_SIZE);
         }
-        /* until we find something better, IIIIIIIIIIIIII'll alwaaaaaayyyys <3 u, *cough* *cough*,  allocate memory for holding the value */
-        if(value != NULL){
-            strncpy(i->value, value, KV_SIZE);
-        }
-        else {
-            if(i->value != NULL){
-                free(i->value);
-                i->value = NULL;
-            }
-        }
+        i->value = value;
+        /* until we find something better, we'll always allocate memory for holding the value */
+        /* if(value != NULL){ */
+        /*     strncpy(i->value, value, KV_SIZE); */
+        /* } */
+        /* else { */
+        /*     if(i->value != NULL){ */
+        /*         free(i->value); */
+        /*         i->value = NULL; */
+        /*     } */
+        /* } */
         if(pair != NULL){
             i->pair = pair;
         }
     }
 }
-/* int read_buffer(buffer *b, int pos, int clientID, int shardID) */
-/* { */
-/*     b[pos].op = OP_GET; */
-/* } */
