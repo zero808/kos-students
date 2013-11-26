@@ -7,7 +7,7 @@
 
 #define NUM_EL 1000
 #define NUM_SHARDS 5
-#define NUM_CLIENT_THREADS 10
+#define NUM_CLIENT_THREADS 20
 #define NUM_SERVER_THREADS 10
 
 #define KEY_SIZE 20
