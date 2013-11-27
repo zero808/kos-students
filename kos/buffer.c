@@ -11,12 +11,12 @@ item* init_item()
         exit(EXIT_FAILURE);
     }
 
-    /* i->value = calloc(KV_SIZE, sizeof(char)); */
-    /* if(i->value==NULL) { */
-    /*     fprintf(stderr, "Dynamic memory allocation failed\n"); */
-    /*     exit(EXIT_FAILURE); */
-    /* } */
-    i->value = NULL;
+    i->value = calloc(KV_SIZE, sizeof(char));
+    if(i->value==NULL) {
+        fprintf(stderr, "Dynamic memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    /* i->value = NULL; */
     i->pair = NULL;
 
     /* intialize any semaphores/mutexes if needed */
@@ -85,17 +85,30 @@ void write_item(item *i, int clientID, int shardID, int op, char *key, char *val
         if(key != NULL){
             strncpy(i->key, key, KV_SIZE);
         }
-        i->value = value;
+        /* it's better if don't use these two as pointers in case someone changes
+         * the arguments passed */
+        /* i->key = key; */
+        /* i->value = value; */
         /* until we find something better, we'll always allocate memory for holding the value */
-        /* if(value != NULL){ */
-        /*     strncpy(i->value, value, KV_SIZE); */
-        /* } */
-        /* else { */
-        /*     if(i->value != NULL){ */
-        /*         free(i->value); */
-        /*         i->value = NULL; */
-        /*     } */
-        /* } */
+        if(value != NULL){
+            /* check if we can write and if not allocate space for it */
+            if(i->value == NULL) {
+                i->value = calloc(KV_SIZE, sizeof(char));
+                if(i->value==NULL) {
+                    fprintf(stderr, "Dynamic memory allocation failed\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            /* copy the given string */
+            strncpy(i->value, value, KV_SIZE);
+        }
+        else {
+            /* delete any previous string that was there */
+            if(i->value != NULL){
+                free(i->value);
+                i->value = NULL;
+            }
+        }
         if(pair != NULL){
             i->pair = pair;
         }

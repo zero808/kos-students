@@ -12,7 +12,7 @@
 
 #define KEY_SIZE 20
 
-#define DEBUG_PRINT_ENABLED 1  // uncomment to enable DEBUG statements
+/* #define DEBUG_PRINT_ENABLED 1  // uncomment to enable DEBUG statements */
 #if DEBUG_PRINT_ENABLED
 #define DEBUG printf
 #else

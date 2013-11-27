@@ -25,6 +25,7 @@ typedef struct _item {
     /* the code of the operation */
     int op;
     char key[KV_SIZE];
+    /* char *key; */
     /* char value[KV_SIZE]; */
     /* for simplicity value will be dinamically allocated
      * (until we find something more clever...) */

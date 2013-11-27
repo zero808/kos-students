@@ -5,14 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NUM_EL 1000
+#define NUM_EL 10
 #define NUM_SHARDS 5
-#define NUM_CLIENT_THREADS 20
-#define NUM_SERVER_THREADS 10
+#define NUM_CLIENT_THREADS 5
+#define NUM_SERVER_THREADS 2
 
 #define KEY_SIZE 20
 
-#define DEBUG_PRINT_ENABLED 1  // uncomment to enable DEBUG statements
+/* #define DEBUG_PRINT_ENABLED 1  // uncomment to enable DEBUG statements */
 #if DEBUG_PRINT_ENABLED
 #define DEBUG printf
 #else
@@ -171,5 +171,7 @@ int main(int argc, const  char* argv[] ) {
 		}
            }
 
+        /* free(threads); */
+        /* free(ids); */
 	return 0;
 }
