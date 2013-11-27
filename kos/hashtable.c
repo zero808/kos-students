@@ -4,10 +4,10 @@
 #include <unistd.h>
 #include <errno.h>
 
-void start_reading(hashtable *h, int bucket);
-void finish_reading(hashtable *h, int bucket);
-void start_writing(hashtable *h, int bucket);
-void finish_writing(hashtable *h, int bucket);
+/* void start_reading(hashtable *h, int bucket); */
+/* void finish_reading(hashtable *h, int bucket); */
+/* void start_writing(hashtable *h, int bucket); */
+/* void finish_writing(hashtable *h, int bucket); */
 
 hashtable *init_hashtable(int size)
 {
@@ -56,6 +56,10 @@ hashtable *init_hashtable(int size)
             exit(EXIT_FAILURE);
         }
         if(sem_init(&(h->s_writers[ix]), 0, 0) != 0) {
+            fprintf(stderr, "Error initializing s_writers[%d], error code is %d\n", ix, errno);
+            exit(EXIT_FAILURE);
+        }
+        if(pthread_rwlock_init(&(h->rwlock[ix]), NULL) != 0) {
             fprintf(stderr, "Error initializing s_writers[%d], error code is %d\n", ix, errno);
             exit(EXIT_FAILURE);
         }
@@ -115,9 +119,11 @@ char *get(hashtable *h, char *key)
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-        start_reading(h, bucket);
+        /* start_reading(h, bucket); */
+        pthread_rwlock_rdlock(&h->rwlock[bucket]);
         value = lst_get(h->lists[bucket], key);
-        finish_reading(h, bucket);
+        pthread_rwlock_unlock(&h->rwlock[bucket]);
+        /* finish_reading(h, bucket); */
     }
     else {
         puts("error: received NULL pointer");
@@ -133,9 +139,12 @@ char *ht_remove(hashtable *h, char *key)
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-        start_writing(h, bucket);
+        /* start_writing(h, bucket); */
+        pthread_rwlock_wrlock(&h->rwlock[bucket]);
         ret = lst_remove(h->lists[bucket], key);
-        finish_writing(h, bucket);
+        pthread_rwlock_unlock(&h->rwlock[bucket]);
+        /* finish_writing(h, bucket); */
+
 
     }
     else {
@@ -151,9 +160,11 @@ char *add(hashtable *h, char *key, char *value)
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-        start_writing(h, bucket);
+        /* start_writing(h, bucket); */
+        pthread_rwlock_wrlock(&h->rwlock[bucket]);
         ret = lst_insert(h->lists[bucket], key, value);
-        finish_writing(h, bucket);
+        pthread_rwlock_unlock(&h->rwlock[bucket]);
+        /* finish_writing(h, bucket); */
     }
     else {
         puts("error: received NULL pointer");
@@ -161,8 +172,6 @@ char *add(hashtable *h, char *key, char *value)
     return ret;
 }
 
-/* FIXME
- * either lock up the whole structure or one list at a time */
 KV_t* getAllKeys(hashtable *h, int* dim)
 {
     if(h != NULL) {
@@ -172,7 +181,9 @@ KV_t* getAllKeys(hashtable *h, int* dim)
         /* we check the number of elements of the lists to
         * avoid using realloc */
         for(ix = 0, counter = 0; ix < h->size; ix += 1) {
+            pthread_rwlock_rdlock(&h->rwlock[ix]);
             counter += lst_size(h->lists[ix]);
+            pthread_rwlock_unlock(&h->rwlock[ix]);
         }
         pairs = calloc((size_t) counter, sizeof(KV_t));
         if(pairs==NULL) {
@@ -185,8 +196,10 @@ KV_t* getAllKeys(hashtable *h, int* dim)
 
             /* for every element in the list */
             for(lst_it = h->lists[ix]->first; lst_it != NULL; lst_it = lst_it->next) {
+                pthread_rwlock_rdlock(&h->rwlock[ix]);
                 strncpy(pairs[ix].key, lst_it->item->key, KV_SIZE);
                 strncpy(pairs[ix].value, lst_it->item->value, KV_SIZE);
+                pthread_rwlock_unlock(&h->rwlock[ix]);
             }
         }
         *dim = counter;
@@ -198,64 +211,64 @@ KV_t* getAllKeys(hashtable *h, int* dim)
 
 /* Implementation for the Readers-Writers problem, page 225
  * Use these functions to avoid repeated code */
-void start_reading(hashtable *h, int bucket)
-{
-    pthread_mutex_lock(&(h->ht_mutex[bucket]));
-    if(h->writing[bucket] || h->writers_waiting[bucket] > 0) {
-        ++h->readers_waiting[bucket];
-        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-        sem_wait(&(h->s_readers[bucket]));
-        pthread_mutex_lock(&(h->ht_mutex[bucket]));
-        if(h->readers_waiting > 0) {
-            ++h->readers[bucket];
-            --h->readers_waiting[bucket];
-            sem_post(&(h->s_readers[bucket]));
-        }
-    }
-    else {
-        ++h->readers[bucket];
-    }
-    pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-}
+/* void start_reading(hashtable *h, int bucket) */
+/* { */
+/*     pthread_mutex_lock(&(h->ht_mutex[bucket])); */
+/*     if(h->writing[bucket] || h->writers_waiting[bucket] > 0) { */
+/*         ++h->readers_waiting[bucket]; */
+/*         pthread_mutex_unlock(&(h->ht_mutex[bucket])); */
+/*         sem_wait(&(h->s_readers[bucket])); */
+/*         pthread_mutex_lock(&(h->ht_mutex[bucket])); */
+/*         if(h->readers_waiting > 0) { */
+/*             ++h->readers[bucket]; */
+/*             --h->readers_waiting[bucket]; */
+/*             sem_post(&(h->s_readers[bucket])); */
+/*         } */
+/*     } */
+/*     else { */
+/*         ++h->readers[bucket]; */
+/*     } */
+/*     pthread_mutex_unlock(&(h->ht_mutex[bucket])); */
+/* } */
 
-void finish_reading(hashtable *h, int bucket)
-{
-    pthread_mutex_lock(&(h->ht_mutex[bucket]));
-    --h->readers[bucket];
-    if((h->readers[bucket] == 0) && (h->writers_waiting[bucket] > 0)) {
-        sem_post(&(h->s_writers[bucket]));
-        h->writing[bucket] = TRUE;
-        --h->readers_waiting[bucket];
-    }
-    pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-}
+/* void finish_reading(hashtable *h, int bucket) */
+/* { */
+/*     pthread_mutex_lock(&(h->ht_mutex[bucket])); */
+/*     --h->readers[bucket]; */
+/*     if((h->readers[bucket] == 0) && (h->writers_waiting[bucket] > 0)) { */
+/*         sem_post(&(h->s_writers[bucket])); */
+/*         h->writing[bucket] = TRUE; */
+/*         --h->readers_waiting[bucket]; */
+/*     } */
+/*     pthread_mutex_unlock(&(h->ht_mutex[bucket])); */
+/* } */
 
-void start_writing(hashtable *h, int bucket)
-{
-    pthread_mutex_lock(&(h->ht_mutex[bucket]));
-    if(h->writing[bucket] || (h->readers[bucket] > 0) || (h->readers_waiting[bucket] > 0)) {
-        ++h->writers_waiting[bucket];
-        pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-        sem_wait(&(h->s_writers[bucket]));
-        pthread_mutex_lock(&(h->ht_mutex[bucket]));
-    }
-    h->writing[bucket] = TRUE;
-    pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-}
+/* void start_writing(hashtable *h, int bucket) */
+/* { */
+/*     pthread_mutex_lock(&(h->ht_mutex[bucket])); */
+/*     if(h->writing[bucket] || (h->readers[bucket] > 0) || (h->readers_waiting[bucket] > 0)) { */
+/*         ++h->writers_waiting[bucket]; */
+/*         pthread_mutex_unlock(&(h->ht_mutex[bucket])); */
+/*         sem_wait(&(h->s_writers[bucket])); */
+/*         pthread_mutex_lock(&(h->ht_mutex[bucket])); */
+/*     } */
+/*     h->writing[bucket] = TRUE; */
+/*     pthread_mutex_unlock(&(h->ht_mutex[bucket])); */
+/* } */
 
-void finish_writing(hashtable *h, int bucket)
-{
-    pthread_mutex_lock(&(h->ht_mutex[bucket]));
-    h->writing[bucket] = FALSE;
-    if(h->readers_waiting[bucket] > 0) {
-        sem_post(&(h->s_readers[bucket]));
-        ++h->readers[bucket];
-        --h->readers_waiting[bucket];
-    }
-    else if(h->writers_waiting[bucket] > 0) {
-        sem_post(&(h->s_writers[bucket]));
-        h->writing[bucket] = TRUE;
-        --h->writers_waiting[bucket];
-    }
-    pthread_mutex_unlock(&(h->ht_mutex[bucket]));
-}
+/* void finish_writing(hashtable *h, int bucket) */
+/* { */
+/*     pthread_mutex_lock(&(h->ht_mutex[bucket])); */
+/*     h->writing[bucket] = FALSE; */
+/*     if(h->readers_waiting[bucket] > 0) { */
+/*         sem_post(&(h->s_readers[bucket])); */
+/*         ++h->readers[bucket]; */
+/*         --h->readers_waiting[bucket]; */
+/*     } */
+/*     else if(h->writers_waiting[bucket] > 0) { */
+/*         sem_post(&(h->s_writers[bucket])); */
+/*         h->writing[bucket] = TRUE; */
+/*         --h->writers_waiting[bucket]; */
+/*     } */
+/*     pthread_mutex_unlock(&(h->ht_mutex[bucket])); */
+/* } */

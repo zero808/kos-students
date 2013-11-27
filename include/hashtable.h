@@ -28,6 +28,7 @@ typedef struct hashtable {
     sem_t s_writers[HT_SIZE];
     /* Mutex for accessing shared information of a given list */
     pthread_mutex_t ht_mutex[HT_SIZE];
+    pthread_rwlock_t rwlock[HT_SIZE];
 } hashtable;
 
 hashtable* init_hashtable(int size);
