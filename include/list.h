@@ -13,6 +13,7 @@
 /* lst_iitem - each element of the list points to the next element */
 typedef struct lst_iitem {
    KV_t *item;
+   int file_position;
    struct lst_iitem *next;
 } lst_iitem_t;
 
@@ -31,7 +32,7 @@ list_t* lst_new();
 void lst_destroy(list_t *);
 
 /* lst_insert - insert a new item with value 'value' in list 'list' */
-char* lst_insert(list_t *list, char *key, char *value);
+char* lst_insert(list_t *list, char *key, char *value, int file_position);
 
 /* lst_remove - remove first item of value 'value' from list 'list' */
 char *lst_remove(list_t *list, char *key);
@@ -43,5 +44,9 @@ void lst_print(list_t *list);
 int lst_size(list_t *list);
 
 char *lst_get(list_t *list, char* key);
+
+/* functions for the invalid positions on the fdshardId files */
+int lst_remove_pos(list_t *list);
+int lst_insert_pos(list_t *list, int file_position);
 
 #endif

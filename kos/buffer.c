@@ -28,9 +28,10 @@ void destroy_item(item *i)
 {
     if(i != NULL){
         sem_destroy(&(i->waiting));
-        if(i->pair != NULL){
-            free(i->pair);
-        }
+        /* if(i->pair != NULL){ */
+        /*     free(i->pair); */
+        /* } */
+        /* TODO COMENTAR O FREE(i->value) */
         if(i->value != NULL){
             free(i->value);
         }
@@ -70,7 +71,7 @@ void destroy_buffer(buffer *b)
 }
 
 /* int write_item(buffer *b, int pos, int clientID, int shardID, int op, char *key, char *value, KV_t *pair, int id) */
-void write_item(item *i, int clientID, int shardID, int op, char *key, char *value, KV_t *pair)
+void write_item(item *i, int clientID, int shardID, int op, char *key, char *value, KV_t *pair, int file_position)
 {
     if(i != NULL){
         if(clientID != DONOTCHANGE){
@@ -81,6 +82,9 @@ void write_item(item *i, int clientID, int shardID, int op, char *key, char *val
         }
         if(op != DONOTCHANGE){
             i->op = op;
+        }
+        if(file_position != DONOTCHANGE) {
+            i->file_position = file_position;
         }
         if(key != NULL){
             strncpy(i->key, key, KV_SIZE);

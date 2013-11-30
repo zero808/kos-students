@@ -24,19 +24,12 @@ typedef struct _item {
     int dimension;
     /* the code of the operation */
     int op;
+    int file_position;
     char key[KV_SIZE];
-    /* char *key; */
-    /* char value[KV_SIZE]; */
-    /* for simplicity value will be dinamically allocated
-     * (until we find something more clever...) */
     char *value;
     KV_t *pair;
-    /* pthread_mutex_t buffer_mutex; */
     /* to wait for the server to put the answer on the buffer */
-    /* pthread_mutex_t waiting; */
     sem_t waiting;
-    /* this is used to know when the string should be null */
-    /* short int modified; */
 } item;
 
 typedef struct _buffer {
@@ -51,8 +44,5 @@ item* init_item();
 void destroy_item(item *i);
 buffer* init_buffer(int size);
 void destroy_buffer(buffer *b);
-void write_item(item *i, int clientID, int shardID, int op, char *key, char *value, KV_t *pair);
-/* int write_item(item *i, int clientID, int shardID, int op, char *key, char *value, KV_t *pair); */
-/* int write_buffer(buffer *b, int clientID, int shardID, int op, char *key, char *value, KV_t *pair, int id); */
-/* int read_buffer(buffer *b, int pos, int clientID, int shardID); */
+void write_item(item *i, int clientID, int shardID, int op, char *key, char *value, KV_t *pair, int file_position);
 #endif
