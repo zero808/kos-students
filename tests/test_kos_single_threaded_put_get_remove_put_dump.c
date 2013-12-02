@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NUM_EL 100
-#define NUM_SHARDS 10  
+#define NUM_EL 5
+#define NUM_SHARDS 2
 #define KEY_SIZE 20
 
 #define DEBUG_PRINT_ENABLED 1  // uncomment to enable DEBUG statements

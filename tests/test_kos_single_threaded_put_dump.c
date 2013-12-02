@@ -17,7 +17,7 @@
 int lookup(char* key, char* value, KV_t* dump,int dim) {
 	int i=0;
 	for (;i<dim;i++) {
-		if ( (strncmp(key,dump[i].key,KEY_SIZE)) &&  (strncmp(value,dump[i].value,KEY_SIZE) ) )
+		if ( (!strncmp(key,dump[i].key,KEY_SIZE)) &&  (!strncmp(value,dump[i].value,KEY_SIZE) ) )
 		 return 0;
 	}
 	return -1;

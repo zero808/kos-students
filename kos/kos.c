@@ -16,6 +16,7 @@ pthread_t* threads = NULL;
 int *file_pos = NULL;
 list_t **invalids = NULL;
 FILE ** files; /* the fshardId */
+pthread_mutex_t *mutexFiles;
 
 /* Variables and functions needed for the producers-consumers problem */
 int index_producer = 0, index_consumer = 0;
@@ -39,8 +40,8 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
     sem_init(&semCanCons, 0, 0);
     pthread_mutex_init(&mutex, NULL);
     pthread_mutex_init(&mutex_filepos, NULL);
-    threads=(pthread_t*)calloc(num_server_threads, sizeof(pthread_t));
-
+    threads = calloc(num_server_threads, sizeof(pthread_t));
+    mutexFiles = calloc(num_shards, sizeof(pthread_mutex_t));
 
     /* Alloc memory for the pointers to the hashtables */
     shards = calloc(num_shards, sizeof(hashtable*));
@@ -60,6 +61,7 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
     for(ix = 0; ix < num_shards; ix += 1) {
         shards[ix] = init_hashtable(HT_SIZE);
         invalids[ix] = lst_new();
+        pthread_mutex_init(&mutexFiles[ix], NULL);
     }
     /* arranjar maneira de no fim libertar a memoria das shards, lists */
 
@@ -164,7 +166,7 @@ char* kos_put(int clientid, int shardId, char* key, char* value)
     if(ret != NULL) {
         writeToFile(shardId, key, value, i->file_position);
         /* we incremented the counter but we haven't used it */
-        /* lst_insert_pos(invalids[shardId], file_position); */
+        lst_insert_pos(invalids[shardId], file_position);
     }
     else {
         writeToFile(shardId, key, value, file_position);
@@ -184,14 +186,16 @@ char* kos_remove(int clientid, int shardId, char* key)
     producer(i);
     /* FIXME isto é estupido para caralho, não vale a pena allocar
      * para depois allocar outra cópia, passar o ponteiro até ao fim*/
-    if(i->value != NULL) {
-        ret = calloc(KV_SIZE, sizeof(char));
-        if(ret==NULL) {
-            fprintf(stderr, "Dynamic memory allocation failed\n");
-            exit(EXIT_FAILURE);
-        }
-        strncpy(ret, i->value, KV_SIZE);
-    }
+    ret = i->value;
+    i->value = NULL;
+    /* if(i->value != NULL) { */
+    /*     ret = calloc(KV_SIZE, sizeof(char)); */
+    /*     if(ret==NULL) { */
+    /*         fprintf(stderr, "Dynamic memory allocation failed\n"); */
+    /*         exit(EXIT_FAILURE); */
+    /*     } */
+    /*     strncpy(ret, i->value, KV_SIZE); */
+    /* } */
     destroy_item(i);
     return ret;
 }
@@ -243,20 +247,14 @@ void writeToFile(int shardId, char* key, char* value, int position)
     /* } */
 
     /* we want to check if we have to back and how many lines */
+    pthread_mutex_lock(&mutexFiles[shardId]);
     if(position != DONOTCHANGE) {
-        /* (KV_SIZE-1) * 2 + ' ' + '\n') * sizeof(char) * position */
-        /* printf("antes: %ld\n", ftell(f)); */
+        /* 40 = (KV_SIZE-1) * 2 + ' ' + '\n') */
         fseek(files[shardId], 40 * sizeof(char) * position, SEEK_SET);
-        /* printf("depois: %ld\n", ftell(f)); */
     }
-
     fprintf(files[shardId], "%s %s\n", key_copy, value_copy);
-    /* if(fclose(f) == EOF ) { */
-    /*     fprintf ( stderr, "couldn't close file '%s'; %s\n", */
-    /*             name, strerror(errno)); */
-    /*     exit(EXIT_FAILURE); */
-    /* } */
     fflush(files[ix]);
+    pthread_mutex_unlock(&mutexFiles[shardId]);
 }
 
 void removeFromFile()
@@ -298,7 +296,7 @@ void op_handler(item *i)
                 break;
             case OP_GETALL:
                 pair = getAllKeys(shards[i->shardID], &(i->dimension));
-                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, NULL, pair, oldvalue->position);
+                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, NULL, pair, DONOTCHANGE);
                 break;
             default:
                 break;

@@ -29,9 +29,9 @@ void destroy_item(item *i)
 {
     if(i != NULL){
         sem_destroy(&(i->waiting));
-        /* if(i->pair != NULL){ */
-        /*     free(i->pair); */
-        /* } */
+        if(i->pair != NULL){
+            free(i->pair);
+        }
         /* TODO COMENTAR O FREE(i->value) */
         if(i->value != NULL){
             free(i->value);
@@ -85,9 +85,9 @@ void write_item(item *i, int clientID, int shardID, int op, char *key, char *val
             i->op = op;
         }
         /* if(clientID != DONOTCHANGE) { */
-            /* if(i->file_position == DONOTCHANGE) { */
-        i->file_position = file_position;
-            /* } */
+        if(i->file_position != DONOTCHANGE) {
+            i->file_position = file_position;
+        }
         /* } */
         /* else { */
         /*     i->file_position = file */
