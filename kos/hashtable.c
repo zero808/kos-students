@@ -87,10 +87,10 @@ int hash(char* key) {
     return i;
 }
 
-char *get(hashtable *h, char *key)
+lst_ret_t *get(hashtable *h, char *key)
 {
     int bucket;
-    char* value = NULL;
+    lst_ret_t* value = NULL;
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
@@ -107,10 +107,10 @@ char *get(hashtable *h, char *key)
     return value;
 }
 
-char *ht_remove(hashtable *h, char *key)
+lst_ret_t *ht_remove(hashtable *h, char *key)
 {
     int bucket;
-    char *ret = NULL;
+    lst_ret_t *ret = NULL;
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
@@ -128,10 +128,10 @@ char *ht_remove(hashtable *h, char *key)
     return ret;
 }
 
-char *add(hashtable *h, char *key, char *value, int file_position)
+lst_ret_t *add(hashtable *h, char *key, char *value, int file_position)
 {
     int bucket;
-    char *ret = NULL;
+    lst_ret_t *ret = NULL;
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);

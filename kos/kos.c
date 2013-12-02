@@ -15,6 +15,7 @@ pthread_t* threads = NULL;
 /* this tracks the line where we're writing on the file */
 int *file_pos = NULL;
 list_t **invalids = NULL;
+FILE ** files; /* the fshardId */
 
 /* Variables and functions needed for the producers-consumers problem */
 int index_producer = 0, index_consumer = 0;
@@ -30,6 +31,8 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
 {
 
     int ix = 0;
+    FILE *f;
+    char name[KV_SIZE];
 
     b = init_buffer(buf_size);
     sem_init(&semCanProd, 0, buf_size);
@@ -73,6 +76,38 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
         }
     }
 
+
+
+    files = calloc(num_shards, sizeof(FILE*));
+    if(files==NULL) {
+        fprintf(stderr, "\ndynamic memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* This is done to create the files if they don't exist since
+     * execlp is not working, fuck knows why */
+    for(ix = 0; ix < num_shards; ++ix) {
+        snprintf(name, KV_SIZE, "fshard%d", ix);
+        files[ix] = fopen(name, "a");
+        if(files[ix] == NULL) {
+            fprintf ( stderr, "couldn't open file '%s'; %s\n",
+                    name, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        if(fclose(files[ix]) == EOF ) {
+            fprintf ( stderr, "couldn't close file '%s'; %s\n",
+                    name, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        files[ix] = fopen(name, "r+");
+        if(files[ix] == NULL) {
+            fprintf ( stderr, "couldn't open file '%s'; %s\n",
+                    name, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+    }
+
     return 0;
 }
 
@@ -109,7 +144,8 @@ char* kos_put(int clientid, int shardId, char* key, char* value)
     /* get the correct position to write on the file */
     pthread_mutex_lock(&mutex_filepos);
     if(lst_size(invalids[shardId]) == 0) {
-        file_position = file_pos[shardId]++;
+        file_position = file_pos[shardId];
+        file_pos[shardId] += 1;
     }
     else {
         file_position = lst_remove_pos(invalids[shardId]);
@@ -128,7 +164,7 @@ char* kos_put(int clientid, int shardId, char* key, char* value)
     if(ret != NULL) {
         writeToFile(shardId, key, value, i->file_position);
         /* we incremented the counter but we haven't used it */
-        lst_insert_pos(invalids[shardId], file_position);
+        /* lst_insert_pos(invalids[shardId], file_position); */
     }
     else {
         writeToFile(shardId, key, value, file_position);
@@ -179,8 +215,7 @@ KV_t* kos_getAllKeys(int clientid, int shardId, int* dim)
 
 void writeToFile(int shardId, char* key, char* value, int position)
 {
-    FILE *f;
-    /* should be more than enough characters */
+    /* FILE *f; */
     char name[KV_SIZE], key_copy[KV_SIZE], value_copy[KV_SIZE];
     int ix, spaces;
     snprintf(name, KV_SIZE, "fshard%d", shardId);
@@ -200,28 +235,28 @@ void writeToFile(int shardId, char* key, char* value, int position)
     }
     value_copy[ix] = '\0';
 
-    f = fopen(name, "a");
-    if(f == NULL) {
-        fprintf ( stderr, "couldn't open file '%s'; %s\n",
-                name, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+    /* f = fopen(name, "r+"); */
+    /* if(f == NULL) { */
+    /*     fprintf ( stderr, "couldn't open file '%s'; %s\n", */
+    /*             name, strerror(errno)); */
+    /*     exit(EXIT_FAILURE); */
+    /* } */
 
     /* we want to check if we have to back and how many lines */
     if(position != DONOTCHANGE) {
-        /* (KV_SIZE * 2 + ' ' + '\n') * sizeof(char) * position */
-        printf("antes: %ld\n", ftell(f));
-        fseek(f, 42 * sizeof(char) * position, SEEK_SET);
-        printf("depois: %ld\n", ftell(f));
+        /* (KV_SIZE-1) * 2 + ' ' + '\n') * sizeof(char) * position */
+        /* printf("antes: %ld\n", ftell(f)); */
+        fseek(files[shardId], 40 * sizeof(char) * position, SEEK_SET);
+        /* printf("depois: %ld\n", ftell(f)); */
     }
 
-    fprintf(f, "%s %s\n", key_copy, value_copy);
-
-    if(fclose(f) == EOF ) {
-        fprintf ( stderr, "couldn't close file '%s'; %s\n",
-                name, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+    fprintf(files[shardId], "%s %s\n", key_copy, value_copy);
+    /* if(fclose(f) == EOF ) { */
+    /*     fprintf ( stderr, "couldn't close file '%s'; %s\n", */
+    /*             name, strerror(errno)); */
+    /*     exit(EXIT_FAILURE); */
+    /* } */
+    fflush(files[ix]);
 }
 
 void removeFromFile()
@@ -246,29 +281,24 @@ void producer(item *ip)
 
 void op_handler(item *i)
 {
-    char *oldvalue = NULL;
+    lst_ret_t *oldvalue = NULL;
     KV_t *pair = NULL;
         switch(i->op) {
-            /* always free the char* returned by the hashtable's functions! */
             case OP_PUT:
-                oldvalue = add(shards[i->shardID], i->key, i->value, DONOTCHANGE);
-                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue, NULL, DONOTCHANGE);
-                /* free(oldvalue); /1* if it's null it won't do anything *1/ */
+                oldvalue = add(shards[i->shardID], i->key, i->value, i->file_position);
+                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue->value, NULL, oldvalue->position);
                 break;
             case OP_REMOVE:
                 oldvalue = ht_remove(shards[i->shardID], i->key);
-                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue, NULL, DONOTCHANGE);
-                /* free(oldvalue); */
+                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue->value, NULL, oldvalue->position);
                 break;
             case OP_GET:
                 oldvalue = get(shards[i->shardID], i->key);
-                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue, NULL, DONOTCHANGE);
-                /* free(oldvalue); */
+                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue->value, NULL, oldvalue->position);
                 break;
             case OP_GETALL:
                 pair = getAllKeys(shards[i->shardID], &(i->dimension));
-                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, NULL, pair, DONOTCHANGE);
-                /* free(pair); */
+                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, NULL, pair, oldvalue->position);
                 break;
             default:
                 break;

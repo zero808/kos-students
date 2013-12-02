@@ -4,7 +4,6 @@ item* init_item()
 {
     item* i = NULL;
 
-
     i = calloc(1, sizeof(item));
     if(i==NULL) {
         fprintf(stderr, "Dynamic memory allocation failed\n");
@@ -21,6 +20,8 @@ item* init_item()
 
     /* intialize any semaphores/mutexes if needed */
     sem_init(&(i->waiting), 0, 0);
+    /* we initialize this as -1 to verify if the key is being inserted in the file for the first time or not */
+    i->file_position = -1;
     return i;
 }
 
@@ -83,17 +84,17 @@ void write_item(item *i, int clientID, int shardID, int op, char *key, char *val
         if(op != DONOTCHANGE){
             i->op = op;
         }
-        if(file_position != DONOTCHANGE) {
-            i->file_position = file_position;
-        }
+        /* if(clientID != DONOTCHANGE) { */
+            /* if(i->file_position == DONOTCHANGE) { */
+        i->file_position = file_position;
+            /* } */
+        /* } */
+        /* else { */
+        /*     i->file_position = file */
+        /* } */
         if(key != NULL){
             strncpy(i->key, key, KV_SIZE);
         }
-        /* it's better if don't use these two as pointers in case someone changes
-         * the arguments passed */
-        /* i->key = key; */
-        /* i->value = value; */
-        /* until we find something better, we'll always allocate memory for holding the value */
         if(value != NULL){
             /* check if we can write and if not allocate space for it */
             if(i->value == NULL) {

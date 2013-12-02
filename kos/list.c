@@ -30,10 +30,12 @@ void lst_destroy(list_t *list)
     free(list);
 }
 
-char* lst_insert(list_t *list, char *key, char* value, int file_position)
+lst_ret_t *lst_insert(list_t *list, char *key, char* value, int file_position)
 {
+    lst_ret_t *ret = NULL;
     if((list != NULL) && (key != NULL) && (value != NULL)) {
         lst_iitem_t  *tempA, *tempB;
+        ret = calloc(1, sizeof(lst_ret_t));
 
         /* Traverse the list */
         for(tempA = list->first, tempB = list->first; tempA != NULL; tempA = tempA->next) {
@@ -42,10 +44,11 @@ char* lst_insert(list_t *list, char *key, char* value, int file_position)
             /* check if there's an item using the key */
             if(strncmp(key, tempA->item->key, KV_SIZE) == 0) {
                 /* if it already exists replace its value */
-                char *oldValue = calloc(KV_SIZE, sizeof(char));
-                strncpy(oldValue, tempA->item->value, KV_SIZE);
+                ret->value = calloc(KV_SIZE, sizeof(char));
+                strncpy(ret->value, tempA->item->value, KV_SIZE);
+                ret->position = tempA->file_position;
                 strncpy(tempA->item->value, value, KV_SIZE);
-                return oldValue; /* the receiver should free the memory */
+                return ret; /* the receiver should free the memory */
             }
         }
         /* if there's time, change this to adding elements at the
@@ -69,8 +72,10 @@ char* lst_insert(list_t *list, char *key, char* value, int file_position)
             tempB->next = tempA;
         }
         list->size += 1;
+        ret->value = NULL;
+        ret->position = file_position;
     }
-    return NULL;
+    return ret;
 }
 
 /* we have this function in order to avoid writing more code
@@ -116,9 +121,9 @@ int lst_remove_pos(list_t *list)
 }
 
 /* A função lst_remove recebe uma lista e um valor e remove o primeiro item com aquele valor. */
-char *lst_remove(list_t *list, char *key)
+lst_ret_t *lst_remove(list_t *list, char *key)
 {
-    char *ret = NULL;
+    lst_ret_t *ret = NULL;
     /* make this a double linked list ffs */
     if(list != NULL) {
         if(list->first == NULL) {
@@ -131,12 +136,14 @@ char *lst_remove(list_t *list, char *key)
             if(!strncmp(tempA->item->key, key, KV_SIZE)) {
                 tempB = tempA->next;
                 /* allocate memory for the copy of the element to be removed */
-                ret = calloc((size_t) KV_SIZE, sizeof(char));
+                ret = calloc(1, sizeof(lst_ret_t));
                 if(ret==NULL) {
                     fprintf(stderr, "Dynamic memory allocation failed\n");
                     exit(EXIT_FAILURE);
                 }
-                strncpy(ret, tempA->item->value, KV_SIZE);
+                ret->value = calloc(KV_SIZE, sizeof(char));
+                strncpy(ret->value, tempA->item->value, KV_SIZE);
+                ret->position = tempA->file_position;
                 /* free the memory of the element in the list */
                 free(tempA->item);
                 free(tempA);
@@ -156,7 +163,9 @@ char *lst_remove(list_t *list, char *key)
                                 fprintf(stderr, "Dynamic memory allocation failed\n");
                                 exit(EXIT_FAILURE);
                             }
-                            strncpy(ret, tempA->next->item->value, KV_SIZE);
+                            strncpy(ret->value, tempA->next->item->value, KV_SIZE);
+                            ret->position = tempA->next->file_position;
+                /* free the memory of the element in the list */
                             free(tempA->next->item);
                             free(tempA->next);
                             tempA->next = tempB;
@@ -192,19 +201,22 @@ int lst_size(list_t *list) {
     return list->size;
 }
 
-char *lst_get(list_t *list, char* key) {
-    char *ret = NULL;
-    lst_iitem_t  *temp;
+lst_ret_t *lst_get(list_t *list, char* key) {
+    lst_ret_t *ret = NULL;
+    lst_iitem_t  *temp = NULL;
 
     temp = list->first;
     while(temp != NULL) {
         if(!strncmp(key, temp->item->key, KV_SIZE)) {
-            ret = calloc((size_t) KV_SIZE, sizeof(char));
+            ret = calloc(1, sizeof(lst_ret_t));
             if(ret==NULL) {
                 fprintf(stderr, "Dynamic memory allocation failed\n");
                 exit(EXIT_FAILURE);
             }
-            strncpy(ret, temp->item->value, KV_SIZE);
+            ret->value = calloc(KV_SIZE, sizeof(char));
+            strncpy(ret->value, temp->item->value, KV_SIZE);
+            ret->position = temp->file_position;
+                /* free the memory of the element in the list */
             /* TODO: this return is most likely unneeded */
             return ret;
         }

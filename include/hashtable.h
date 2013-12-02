@@ -21,9 +21,9 @@ typedef struct hashtable {
 hashtable* init_hashtable(int size);
 int delete_hashtable(hashtable *h);
 int hash(char *key);
-char *get(hashtable *h, char *key);
-char *ht_remove(hashtable *h, char *key);
-char* add(hashtable *h, char *key, char *value, int file_position);
+lst_ret_t *get(hashtable *h, char *key);
+lst_ret_t *ht_remove(hashtable *h, char *key);
+lst_ret_t *add(hashtable *h, char *key, char *value, int file_position);
 KV_t* getAllKeys(hashtable *h, int *dim);
 
 #endif
