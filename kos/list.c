@@ -158,11 +158,12 @@ lst_ret_t *lst_remove(list_t *list, char *key)
                         /* If we found the element we remove it */
                         if(!strncmp(tempA->next->item->key, key, KV_SIZE)) {
                             tempB = tempA->next->next;
-                            ret = calloc((size_t) KV_SIZE, sizeof(char));
+                            ret = calloc(1, sizeof(lst_ret_t));
                             if(ret==NULL) {
                                 fprintf(stderr, "Dynamic memory allocation failed\n");
                                 exit(EXIT_FAILURE);
                             }
+                            ret->value = calloc(KV_SIZE, sizeof(char));
                             strncpy(ret->value, tempA->next->item->value, KV_SIZE);
                             ret->position = tempA->next->file_position;
                 /* free the memory of the element in the list */

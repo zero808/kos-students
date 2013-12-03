@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NUM_EL 10000
-#define NUM_SHARDS 1
-#define NUM_CLIENT_THREADS 2
-#define NUM_SERVER_THREADS 2
+#define NUM_EL 5
+#define NUM_SHARDS 2
+#define NUM_CLIENT_THREADS 3
+#define NUM_SERVER_THREADS 1
 
 #define KEY_SIZE 20
 

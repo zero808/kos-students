@@ -17,8 +17,11 @@
 int lookup(char* key, char* value, KV_t* dump,int dim) {
 	int i=0;
 	for (;i<dim;i++) {
-		if ( (!strncmp(key,dump[i].key,KEY_SIZE)) &&  (!strncmp(value,dump[i].value,KEY_SIZE) ) )
+	    printf("%s %s\n", dump[i].key, dump[i].value);
+		if ( (!strncmp(key,dump[i].key,KEY_SIZE)) &&  (!strncmp(value,dump[i].value,KEY_SIZE) ) ) {
+		    printf("já checkou o %s com value %s\n", dump[i].key, dump[i].value); 
 		 return 0;
+		}
 	}
 	return -1;
 }

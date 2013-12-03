@@ -1,4 +1,4 @@
-SRCS=test_kos_single_threaded_put_get.c test_kos_single_threaded_put_remove_get.c test_kos_single_threaded_put_get_put_get.c test_kos_single_threaded_put_get_remove_put_get.c test_kos_single_threaded_put_dump.c test_kos_single_threaded_put_get_remove_put_dump.c  test_kos_multi_threaded_put_get.c test_kos_multi_threaded_put_get_remove_get.c   test_kos_multi_threaded_all.c test_kos_multi_threaded_all_getAll.c test_kos_multi_threaded_all_shared.c
+SRCS=test_kos_single_threaded_put_get.c test_kos_single_threaded_put_remove_get.c test_kos_single_threaded_put_get_put_get.c test_kos_single_threaded_put_get_remove_put_get.c test_kos_single_threaded_put_dump.c test_kos_single_threaded_put_get_remove_put_dump.c  test_kos_multi_threaded_put_get.c test_kos_multi_threaded_put_get_remove_get.c   test_kos_multi_threaded_all.c test_kos_multi_threaded_all_getAll.c test_kos_multi_threaded_all_shared.c test_kos_multi_threaded_all_getAll_fromFile.c
 OBJS=${SRCS:.c=}
 
 INCLUDES =  -I ../include 
@@ -31,6 +31,8 @@ test_kos_multi_threaded_all: test_kos_multi_threaded_all.c $(LIBKOS)
 test_kos_multi_threaded_all_getAll: test_kos_multi_threaded_all_getAll.c $(LIBKOS)
 
 test_kos_multi_threaded_all_shared: test_kos_multi_threaded_all_shared.c $(LIBKOS)
+
+test_kos_multi_threaded_all_getAll_fromFile: test_kos_multi_threaded_all_getAll_fromFile.c $(LIBKOS)
 
 
 clean: 

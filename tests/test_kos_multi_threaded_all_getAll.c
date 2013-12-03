@@ -71,7 +71,7 @@ void *client_thread(void *arg) {
 	}
 		
 	for (i=0; i<NUM_EL; i++) {
-		sprintf(key, "k%d",i);
+		sprintf(key, "k-c%d-%d",client_id, i);
 		sprintf(value, "val:%d",i);
 		if (lookup(key,value,dump, dim)!=0) {
 			printf("TEST FAILED - Error on <%s,%s>, shard %d - not returned in dump\n",key,value,client_id);
@@ -150,7 +150,7 @@ void *client_thread(void *arg) {
 		}
 			
 		for (i=0; i<NUM_EL; i++) {
-			sprintf(key, "k%d",i);
+			sprintf(key, "k-c%d-%d",client_id, i);
 			sprintf(value, "val:%d",i*10);
 			if (lookup(key,value,dump, dim)!=0) {
 				printf("TEST FAILED - Error on <%s,%s>, shard %d - not returned in dump\n",key,value,client_id);

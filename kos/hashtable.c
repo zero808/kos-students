@@ -152,10 +152,10 @@ KV_t* getAllKeys(hashtable *h, int* dim)
     if(h != NULL) {
         KV_t* pairs = NULL;
         lst_iitem_t *lst_it = NULL;
-        int counter, ix;
+        int counter = 0, ix, jx;
         /* we check the number of elements of the lists to
         * avoid using realloc */
-        for(ix = 0, counter = 0; ix < h->size; ix += 1) {
+        for(ix = 0; ix < h->size; ix += 1) {
             pthread_rwlock_rdlock(&h->rwlock[ix]);
             counter += lst_size(h->lists[ix]);
             pthread_rwlock_unlock(&h->rwlock[ix]);
@@ -167,13 +167,13 @@ KV_t* getAllKeys(hashtable *h, int* dim)
         }
 
         /* for every list in the hashtable */
-        for(ix = 0; ix < h->size; ix += 1) {
+        for(ix = 0, jx = 0; ix < h->size; ix += 1) {
 
             /* for every element in the list */
-            for(lst_it = h->lists[ix]->first; lst_it != NULL; lst_it = lst_it->next) {
+            for(lst_it = h->lists[ix]->first; lst_it != NULL; ++jx, lst_it = lst_it->next) {
                 pthread_rwlock_rdlock(&h->rwlock[ix]);
-                strncpy(pairs[ix].key, lst_it->item->key, KV_SIZE);
-                strncpy(pairs[ix].value, lst_it->item->value, KV_SIZE);
+                strncpy(pairs[jx].key, lst_it->item->key, KV_SIZE);
+                strncpy(pairs[jx].value, lst_it->item->value, KV_SIZE);
                 pthread_rwlock_unlock(&h->rwlock[ix]);
             }
         }

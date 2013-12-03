@@ -32,7 +32,6 @@ void destroy_item(item *i)
         if(i->pair != NULL){
             free(i->pair);
         }
-        /* TODO COMENTAR O FREE(i->value) */
         if(i->value != NULL){
             free(i->value);
         }

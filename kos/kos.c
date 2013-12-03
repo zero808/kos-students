@@ -28,6 +28,7 @@ void consumer();
 void *server_thread(void *arg);
 void writeToFile(int shardID, char* key, char* value, int position);
 
+/* TODO INICIALIZAR A PARTIR DE FICHEIRO  */
 int kos_init(int num_server_threads, int buf_size, int num_shards)
 {
 
@@ -184,18 +185,9 @@ char* kos_remove(int clientid, int shardId, char* key)
     /*delay();*/
     write_item(i, clientid, shardId, OP_REMOVE, key, NULL, NULL, DONOTCHANGE);
     producer(i);
-    /* FIXME isto é estupido para caralho, não vale a pena allocar
-     * para depois allocar outra cópia, passar o ponteiro até ao fim*/
     ret = i->value;
     i->value = NULL;
-    /* if(i->value != NULL) { */
-    /*     ret = calloc(KV_SIZE, sizeof(char)); */
-    /*     if(ret==NULL) { */
-    /*         fprintf(stderr, "Dynamic memory allocation failed\n"); */
-    /*         exit(EXIT_FAILURE); */
-    /*     } */
-    /*     strncpy(ret, i->value, KV_SIZE); */
-    /* } */
+    lst_insert_pos(invalids[shardId], i->file_position);
     destroy_item(i);
     return ret;
 }
@@ -253,7 +245,7 @@ void writeToFile(int shardId, char* key, char* value, int position)
         fseek(files[shardId], 40 * sizeof(char) * position, SEEK_SET);
     }
     fprintf(files[shardId], "%s %s\n", key_copy, value_copy);
-    fflush(files[ix]);
+    fflush(files[shardId]);
     pthread_mutex_unlock(&mutexFiles[shardId]);
 }
 
@@ -288,11 +280,21 @@ void op_handler(item *i)
                 break;
             case OP_REMOVE:
                 oldvalue = ht_remove(shards[i->shardID], i->key);
-                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue->value, NULL, oldvalue->position);
+                if(oldvalue == NULL) {
+                    write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, NULL, NULL, DONOTCHANGE);
+                }
+                else {
+                    write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue->value, NULL, oldvalue->position);
+                }
                 break;
             case OP_GET:
                 oldvalue = get(shards[i->shardID], i->key);
-                write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue->value, NULL, oldvalue->position);
+                if(oldvalue == NULL) {
+                    write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, NULL, NULL, DONOTCHANGE);
+                }
+                else {
+                    write_item(i, DONOTCHANGE, DONOTCHANGE, DONOTCHANGE, NULL, oldvalue->value, NULL, oldvalue->position);
+                }
                 break;
             case OP_GETALL:
                 pair = getAllKeys(shards[i->shardID], &(i->dimension));
