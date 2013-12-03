@@ -13,4 +13,5 @@ do
 	echo ---------------------------------------------------------
 	echo press a key to continue
 	read a
+	rm fshard*
 done

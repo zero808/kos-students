@@ -8,12 +8,16 @@
 #include <hashtable.h>
 #include <delay.h>
 
-/* TODO find a way to free all this memory when the program finishes running */
+#define LINESIZE 41
+
 hashtable **shards = NULL;
 buffer *b = NULL;
 pthread_t* threads = NULL;
 /* this tracks the line where we're writing on the file */
 int *file_pos = NULL;
+/* when we remove an element from the kos we save its position in this list so
+ * we can overwrite that line with the data of a new element. This way we avoid
+ * searching the whole file for the data of the element that was removed and delete it.*/
 list_t **invalids = NULL;
 FILE ** files; /* the fshardId */
 pthread_mutex_t *mutexFiles;
@@ -22,19 +26,28 @@ pthread_mutex_t *mutexFiles;
 int index_producer = 0, index_consumer = 0;
 pthread_mutex_t mutex, mutex_filepos;
 sem_t semCanProd, semCanCons;
+
+/* Function Prototypes */
 void op_handler(item *i);
 void producer(item *ip);
 void consumer();
+void populate(int shardId, char*key, char*value);
 void *server_thread(void *arg);
 void writeToFile(int shardID, char* key, char* value, int position);
+void populate(int shardId, char* key, char* value);
 
-/* TODO INICIALIZAR A PARTIR DE FICHEIRO  */
 int kos_init(int num_server_threads, int buf_size, int num_shards)
 {
 
     int ix = 0;
     FILE *f;
     char name[KV_SIZE];
+    /* used in strtok */
+    char delim[2] = " ";
+    char key_file[KV_SIZE];
+    char value_file[KV_SIZE];
+    char* s;
+    char line[LINESIZE];
 
     b = init_buffer(buf_size);
     sem_init(&semCanProd, 0, buf_size);
@@ -64,7 +77,6 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
         invalids[ix] = lst_new();
         pthread_mutex_init(&mutexFiles[ix], NULL);
     }
-    /* arranjar maneira de no fim libertar a memoria das shards, lists */
 
     file_pos = calloc(num_shards, sizeof(int));
     if(file_pos==NULL) {
@@ -79,8 +91,6 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
         }
     }
 
-
-
     files = calloc(num_shards, sizeof(FILE*));
     if(files==NULL) {
         fprintf(stderr, "\ndynamic memory allocation failed\n");
@@ -90,28 +100,53 @@ int kos_init(int num_server_threads, int buf_size, int num_shards)
     /* This is done to create the files if they don't exist since
      * execlp is not working, fuck knows why */
     for(ix = 0; ix < num_shards; ++ix) {
-        snprintf(name, KV_SIZE, "fshard%d", ix);
-        files[ix] = fopen(name, "a");
-        if(files[ix] == NULL) {
-            fprintf ( stderr, "couldn't open file '%s'; %s\n",
-                    name, strerror(errno));
-            exit(EXIT_FAILURE);
-        }
-        if(fclose(files[ix]) == EOF ) {
-            fprintf ( stderr, "couldn't close file '%s'; %s\n",
-                    name, strerror(errno));
-            exit(EXIT_FAILURE);
-        }
-        files[ix] = fopen(name, "r+");
-        if(files[ix] == NULL) {
-            fprintf ( stderr, "couldn't open file '%s'; %s\n",
-                    name, strerror(errno));
-            exit(EXIT_FAILURE);
-        }
 
+        snprintf(name, KV_SIZE, "fshard%d", ix);
+
+        if((files[ix] = fopen(name, "r")) != NULL) {
+            /* LINESIZE = (KV_SIZE -1) * 2 + 1espaço + 1\n */
+            while(fgets(line, LINESIZE, files[ix]) != NULL) {
+                /* get the line from the file and get two tokens, the key and
+                 * its respective value */
+                s = strtok(line,delim);
+                strncpy(key_file, s, KV_SIZE);
+                s = strtok(NULL, delim);
+                strncpy(value_file, s, KV_SIZE);
+                populate(ix ,key_file, value_file);
+            }
+        }
+        else {
+            files[ix] = fopen(name, "w");
+            if(files[ix] == NULL) {
+                fprintf ( stderr, "couldn't open file '%s'; %s\n",
+                        name, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            if(fclose(files[ix]) == EOF ) {
+                fprintf ( stderr, "couldn't close file '%s'; %s\n",
+                        name, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            files[ix] = fopen(name, "r+");
+            if(files[ix] == NULL) {
+                fprintf ( stderr, "couldn't open file '%s'; %s\n",
+                        name, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+        }
     }
 
     return 0;
+}
+
+/* This is similar to the kos_put function except that we don't care about
+ * concurrency since this runs before any client can make any request */
+void populate(int shardId, char* key, char* value)
+{
+    int file_position = -1;
+    file_position = file_pos[shardId];
+    file_pos[shardId] += 1;
+    add(shards[shardId], key, value, file_position);
 }
 
 char* kos_get(int clientid, int shardId, char* key)
@@ -120,7 +155,6 @@ char* kos_get(int clientid, int shardId, char* key)
     item *i = NULL;
     i = init_item();
 
-    /*delay();*/
     write_item(i, clientid, shardId, OP_GET, key, NULL, NULL, DONOTCHANGE);
     producer(i);
     if(i->value != NULL) {
@@ -143,7 +177,6 @@ char* kos_put(int clientid, int shardId, char* key, char* value)
     item *i = NULL;
     i = init_item();
 
-    /*delay();*/
     /* get the correct position to write on the file */
     pthread_mutex_lock(&mutex_filepos);
     if(lst_size(invalids[shardId]) == 0) {
@@ -182,7 +215,6 @@ char* kos_remove(int clientid, int shardId, char* key)
     item *i = NULL;
     i = init_item();
 
-    /*delay();*/
     write_item(i, clientid, shardId, OP_REMOVE, key, NULL, NULL, DONOTCHANGE);
     producer(i);
     ret = i->value;
@@ -198,7 +230,6 @@ KV_t* kos_getAllKeys(int clientid, int shardId, int* dim)
     KV_t *pair;
     i = init_item();
 
-    /*delay();*/
     write_item(i, clientid, shardId, OP_GETALL, NULL, NULL, NULL, DONOTCHANGE);
     producer(i);
     *dim = i->dimension;
@@ -211,7 +242,6 @@ KV_t* kos_getAllKeys(int clientid, int shardId, int* dim)
 
 void writeToFile(int shardId, char* key, char* value, int position)
 {
-    /* FILE *f; */
     char name[KV_SIZE], key_copy[KV_SIZE], value_copy[KV_SIZE];
     int ix, spaces;
     snprintf(name, KV_SIZE, "fshard%d", shardId);
@@ -231,13 +261,6 @@ void writeToFile(int shardId, char* key, char* value, int position)
     }
     value_copy[ix] = '\0';
 
-    /* f = fopen(name, "r+"); */
-    /* if(f == NULL) { */
-    /*     fprintf ( stderr, "couldn't open file '%s'; %s\n", */
-    /*             name, strerror(errno)); */
-    /*     exit(EXIT_FAILURE); */
-    /* } */
-
     /* we want to check if we have to back and how many lines */
     pthread_mutex_lock(&mutexFiles[shardId]);
     if(position != DONOTCHANGE) {
@@ -247,11 +270,6 @@ void writeToFile(int shardId, char* key, char* value, int position)
     fprintf(files[shardId], "%s %s\n", key_copy, value_copy);
     fflush(files[shardId]);
     pthread_mutex_unlock(&mutexFiles[shardId]);
-}
-
-void removeFromFile()
-{
-
 }
 
 /* Producer-Consumer problem - page 239, 1st edition */
@@ -273,6 +291,7 @@ void op_handler(item *i)
 {
     lst_ret_t *oldvalue = NULL;
     KV_t *pair = NULL;
+    delay();
         switch(i->op) {
             case OP_PUT:
                 oldvalue = add(shards[i->shardID], i->key, i->value, i->file_position);
@@ -311,6 +330,7 @@ void consumer()
     item *i = NULL;
     sem_wait(&semCanCons);
     pthread_mutex_lock(&mutex);
+    delay();
     pos = index_consumer++;
     index_consumer %= b->size;
     i = b->items[pos];
@@ -327,7 +347,6 @@ void *server_thread(void *arg)
 {
 
     while(1) {
-        /*delay();*/
         consumer();
     }
 }

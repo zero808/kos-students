@@ -94,11 +94,9 @@ lst_ret_t *get(hashtable *h, char *key)
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-        /* start_reading(h, bucket); */
         pthread_rwlock_rdlock(&h->rwlock[bucket]);
         value = lst_get(h->lists[bucket], key);
         pthread_rwlock_unlock(&h->rwlock[bucket]);
-        /* finish_reading(h, bucket); */
     }
     else {
         puts("error: received NULL pointer");
@@ -114,11 +112,9 @@ lst_ret_t *ht_remove(hashtable *h, char *key)
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-        /* start_writing(h, bucket); */
         pthread_rwlock_wrlock(&h->rwlock[bucket]);
         ret = lst_remove(h->lists[bucket], key);
         pthread_rwlock_unlock(&h->rwlock[bucket]);
-        /* finish_writing(h, bucket); */
 
 
     }
@@ -135,11 +131,9 @@ lst_ret_t *add(hashtable *h, char *key, char *value, int file_position)
 
     if((h != NULL) && (key != NULL)) {
         bucket = hash(key);
-        /* start_writing(h, bucket); */
         pthread_rwlock_wrlock(&h->rwlock[bucket]);
         ret = lst_insert(h->lists[bucket], key, value, file_position);
         pthread_rwlock_unlock(&h->rwlock[bucket]);
-        /* finish_writing(h, bucket); */
     }
     else {
         puts("error: received NULL pointer");

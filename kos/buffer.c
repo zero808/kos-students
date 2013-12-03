@@ -15,7 +15,7 @@ item* init_item()
         fprintf(stderr, "Dynamic memory allocation failed\n");
         exit(EXIT_FAILURE);
     }
-    /* i->value = NULL; */
+    i->value = NULL;
     i->pair = NULL;
 
     /* intialize any semaphores/mutexes if needed */
@@ -70,7 +70,6 @@ void destroy_buffer(buffer *b)
     free(b);
 }
 
-/* int write_item(buffer *b, int pos, int clientID, int shardID, int op, char *key, char *value, KV_t *pair, int id) */
 void write_item(item *i, int clientID, int shardID, int op, char *key, char *value, KV_t *pair, int file_position)
 {
     if(i != NULL){
@@ -83,14 +82,9 @@ void write_item(item *i, int clientID, int shardID, int op, char *key, char *val
         if(op != DONOTCHANGE){
             i->op = op;
         }
-        /* if(clientID != DONOTCHANGE) { */
         if(i->file_position != DONOTCHANGE) {
             i->file_position = file_position;
         }
-        /* } */
-        /* else { */
-        /*     i->file_position = file */
-        /* } */
         if(key != NULL){
             strncpy(i->key, key, KV_SIZE);
         }

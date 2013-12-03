@@ -24,6 +24,7 @@ typedef struct _item {
     int dimension;
     /* the code of the operation */
     int op;
+    /* the line number of the file where stuff is written */
     int file_position;
     char key[KV_SIZE];
     char *value;
