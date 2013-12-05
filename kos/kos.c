@@ -291,7 +291,7 @@ void op_handler(item *i)
 {
     lst_ret_t *oldvalue = NULL;
     KV_t *pair = NULL;
-    delay();
+    /* delay(); */
         switch(i->op) {
             case OP_PUT:
                 oldvalue = add(shards[i->shardID], i->key, i->value, i->file_position);
@@ -330,7 +330,7 @@ void consumer()
     item *i = NULL;
     sem_wait(&semCanCons);
     pthread_mutex_lock(&mutex);
-    delay();
+    /* delay(); */
     pos = index_consumer++;
     index_consumer %= b->size;
     i = b->items[pos];

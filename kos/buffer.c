@@ -82,7 +82,7 @@ void write_item(item *i, int clientID, int shardID, int op, char *key, char *val
         if(op != DONOTCHANGE){
             i->op = op;
         }
-        if(i->file_position != DONOTCHANGE) {
+        if(file_position != DONOTCHANGE) {
             i->file_position = file_position;
         }
         if(key != NULL){

@@ -91,7 +91,7 @@ int lst_insert_pos(list_t *list, int file_position)
         item->item = NULL;
         item->file_position = file_position;
         item->next = list->first;
-        list->first = item->next;
+        list->first = item;
         list->size += 1;
     }
     return 0;
@@ -108,6 +108,7 @@ int lst_remove_pos(list_t *list)
             iterB = iterA->next;
             list->first = iterB;
             free(iterA);
+            list->size -= 1;
         }
     }
     return ret;
